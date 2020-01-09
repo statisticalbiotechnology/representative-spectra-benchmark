@@ -7,5 +7,6 @@ The document is populated with pages for
 - [Literature and Methods references](literature)
 - [Datasets](datasets)
 - [Benchmarking Strategies](benchmark)
+- [Presentation](https://docs.google.com/presentation/d/1f9gMnzccAfw_EnLuwh-cbEAngYUHMVzfp19Fa_9URrc/edit?usp=sharing)
 
 The html version of this page can be reched [here](https://statisticalbiotechnology.github.io/specpride/)
