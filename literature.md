@@ -13,3 +13,7 @@ Different strategies have been suggested for forming representative spectra. [Fr
 - spectra-cluster (PRIDE) - Consensus spectrum.
 - [SpectraST](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2637392/) - Consensus cluster.
 - [NIST](https://math.nist.gov/mcsd/Seminars/2016/2016-05-02-Sheetlin.html) - Consensus spectra
+
+## Benchmarking datasets
+
+Proteome tool's publication [Zolg *et al.*](https://www.nature.com/articles/nmeth.4153)

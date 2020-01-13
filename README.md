@@ -5,7 +5,7 @@ We aim at storing code and documentation in this repository. Send an email to lu
 The document is populated with pages for
 
 - [Literature and Methods references](literature)
-- [Datasets](datasets)
+- [Dataset](ftp://ftp.pride.ebi.ac.uk/pride/data/proteogenomics/projects/eubic-2020/)
 - [Benchmarking Strategies](benchmark)
 - [Presentation](https://docs.google.com/presentation/d/1f9gMnzccAfw_EnLuwh-cbEAngYUHMVzfp19Fa_9URrc/edit?usp=sharing)
 
