@@ -5,7 +5,7 @@ We aim at storing code and documentation in this repository. Send an email to lu
 The document is populated with pages for
 
 - [Literature and Methods references](literature)
-- [Dataset](ftp://ftp.pride.ebi.ac.uk/pride/data/proteogenomics/projects/eubic-2020/)
+- [Dataset](https://github.com/ypriverol/specpride/blob/master/datasets.md)
 - [Presentation](https://docs.google.com/presentation/d/1f9gMnzccAfw_EnLuwh-cbEAngYUHMVzfp19Fa_9URrc/edit?usp=sharing)
 
 The html version of this page can be reched [here](https://statisticalbiotechnology.github.io/specpride/)
