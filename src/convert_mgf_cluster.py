@@ -31,6 +31,7 @@ def convert_mq_mracluster(mq_msms, mrcluster_clusters, mgf_file, output, px_acce
 
     ## Read the input spectra
     input_spectra = mgf.read(mgf_file)
+    spectra_list = list(input_spectra)
     print('Number of Spectra: ' + str(len(input_spectra)))
     ## Read the msms.txt files using, for now the peptides will be a dictionary, where the key is the scan number
     ## and the values is the peptide sequence. We need to be aware that we can have cases when one scan can be associated with more
@@ -62,10 +63,9 @@ def convert_mq_mracluster(mq_msms, mrcluster_clusters, mgf_file, output, px_acce
 
     for scan in clusters:
         print('scan: ' + str(scan))
-        for spectra in input_spectra:
-            if str(scan) in spectra['params']['title']:
+        for spectra in spectra_list:
+            if spectra['params']['title'].endswith('scan='+str(scan)):
                 cluster_accession = clusters[scan]
-
                 if scan not in peptides:
                     peptide_sequence = None
                 else:
