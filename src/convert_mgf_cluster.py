@@ -63,7 +63,6 @@ def convert_mq_mracluster(mq_msms, mrcluster_clusters, mgf_file, output, px_acce
     for scan in clusters:
         print('scan: ' + str(scan))
         for spectra in input_spectra:
-            print(spectra)
             if str(scan) in spectra['params']['title']:
                 cluster_accession = clusters[scan]
 
