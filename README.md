@@ -8,4 +8,4 @@ The document is populated with pages for
 - [Dataset](https://github.com/ypriverol/specpride/blob/master/datasets.md)
 - [Presentation](https://docs.google.com/presentation/d/1f9gMnzccAfw_EnLuwh-cbEAngYUHMVzfp19Fa_9URrc/edit?usp=sharing)
 
-The html version of this page can be reched [here](https://statisticalbiotechnology.github.io/specpride/)
+The html version of this page can be reached [here](https://statisticalbiotechnology.github.io/specpride/)
