@@ -1,3 +1,5 @@
+import re
+
 import click
 from pyteomics import mgf, mzml
 from pyopenms import *
@@ -58,6 +60,10 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
     # Read the input spectra
     input_spectra = mgf.read(mgf_file)
     spectra_list = list(input_spectra)
+    spectra_dic = {}
+    for spectrum in spectra_list:
+        scan = spectrum['params']['title'].split("=")[-1]
+        spectra_dic[int(scan)] = spectrum
     print('Number of Spectra: ' + str(len(spectra_list)))
 
     # Read the msms.txt files using, for now the peptides will be a dictionary, where the key is the scan number
@@ -73,17 +79,17 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
 
     for scan in clusters:
         print('scan: ' + str(scan))
-        for spectra in spectra_list:
-            if spectra['params']['title'].endswith('scan=' + str(scan)):
-                cluster_accession = clusters[scan]
-                if scan not in peptides:
-                    peptide_sequence = None
-                else:
-                    peptide_sequence = peptides[scan]
-                charge = int(spectra['params']['charge'][0])
-                spectra['params']['title'] = buid_usi_accession(cluster_accession, peptide_sequence, scan, px_accession,
+        if scan in spectra_dic:
+            cluster_accession = clusters[scan]
+            spectrum = spectra_dic[scan]
+            if scan not in peptides:
+                peptide_sequence = None
+            else:
+                peptide_sequence = peptides[scan]
+            charge = int(spectrum['params']['charge'][0])
+            spectrum['params']['title'] = buid_usi_accession(cluster_accession, peptide_sequence, scan, px_accession,
                                                                 raw_name, charge)
-                mgf.write([spectra], output)
+            mgf.write([spectrum], output)
 
 
 @click.command('convert-mq-marcluster-mzml', short_help='Command to convert MaxQuant Results and MaCluster into MGF')
