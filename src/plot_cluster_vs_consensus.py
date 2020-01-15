@@ -7,29 +7,29 @@ import sys
 import argparse
 
 
-
 def main(cluster_file,consensus_file):
-    for spectrum_dict in mgf.read(consensus_file):
-        peptide_seq = spectrum_dict['params']['title']
-        precursor_mz = spectrum_dict['params']['pepmass'][0]
-        precursor_charge = spectrum_dict['params']['charge'][0]
-        cons_mz = spectrum_dict['m/z array']
-        cons_intensity = spectrum_dict['intensity array']
-        retention_time = float(spectrum_dict['params']['rtinseconds'])
-        break
+    with mgf.read(consensus_file) as reader:
+        for spectrum_dict in reader:
+            peptide_seq = spectrum_dict['params']['title']
+            precursor_mz = spectrum_dict['params']['pepmass'][0]
+            precursor_charge = spectrum_dict['params']['charge'][0]
+            cons_mz = spectrum_dict['m/z array']
+            cons_intensity = spectrum_dict['intensity array']
+            retention_time = float(spectrum_dict['params']['rtinseconds'])
+            break
     cons_spec = sus.MsmsSpectrum(
         peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=cons_mz, intensity=cons_intensity,
         retention_time=retention_time, peptide=peptide_seq)
-    for spectrum_dict in mgf.read(cluster_file):
-        precursor_mz = spectrum_dict['params']['pepmass'][0]
-        precursor_charge = spectrum_dict['params']['charge'][0]
-        mz = spectrum_dict['m/z array']
-        intensity = spectrum_dict['intensity array']
-        retention_time = float(spectrum_dict['params']['rtinseconds'])
+    with mgf.read(cluster_file) as reader:
+        for spectrum_dict in reader:
+            precursor_mz = spectrum_dict['params']['pepmass'][0]
+            precursor_charge = spectrum_dict['params']['charge'][0]
+            mz = spectrum_dict['m/z array']
+            intensity = spectrum_dict['intensity array']
+            retention_time = float(spectrum_dict['params']['rtinseconds'])
 
         spectrum = sus.MsmsSpectrum(peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge, mz=mz, intensity=intensity,
-            retention_time=retention_time, peptide=peptide_seq)
-
+                retention_time=retention_time, peptide=peptide_seq)
         # Process the MS/MS spectrum.
         fragment_tol_mass = 10
         fragment_tol_mode = 'ppm'
