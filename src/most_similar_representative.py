@@ -12,9 +12,8 @@ import pandas as pd
 # third parameter of xCorrelationPrescore is binsize in Da
 def distance(spec1, spec2, method='xcorr'):
     if (method=='xcorr'):
-        xcorr = XQuestScores().xCorrelationPrescore(spec1, spec2, 0.1)
+        xcorr = XQuestScores().xCorrelationPrescore(spec1, spec2, 0.005)
         return 1.0-xcorr
-    
     else:
         return 0
 
@@ -41,6 +40,11 @@ def main(argv):
     # load clustered spectra
     exp = MSExperiment()
     MascotGenericFile().load(inputfile, exp)
+    raw_exp = MSExperiment()
+    MascotGenericFile().load(inputfile, raw_exp)
+
+    # normalize intensities for each spectrum to a 0.0 to 1.0 range
+    Normalizer().filterPeakMap(exp)
 
     cluster_names = []
     cluster_membership = []
@@ -59,7 +63,7 @@ def main(argv):
 
     for cl in cluster_names:
         
-        print(cl)
+        print("Cluster: ", cl)
         # collect the spectra in the current cluster
         cluster_reached = False
         cluster_ended = False
@@ -75,9 +79,9 @@ def main(argv):
                     break
         
         # if the cluster only contains one spectrum, just return that one
-        print(len(cluster_spec))
+        print("Cluster size: ", len(cluster_spec))
         if (len(cluster_spec) == 1):
-            export_spec.addSpectrum(exp[cluster_spec[0]])
+            export_spec.addSpectrum(raw_exp[cluster_spec[0]])
             continue
             
         # if the cluster does not have any spectra, skip it (should not happen)
@@ -108,10 +112,10 @@ def main(argv):
         if (best_spec.size > 1):
             best_spec = best_spec[0]
         best_spec = best_spec.item()
-        export_spec.addSpectrum(exp[cluster_spec[best_spec]])
+        export_spec.addSpectrum(raw_exp[cluster_spec[best_spec]])
 
     # write output file
-    print(export_spec.size())
+    print("Number of exportet spectra: ", export_spec.size())
     MascotGenericFile().store(outputfile, export_spec)
 
 
