@@ -103,6 +103,24 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
         'intensity array': new_intensity_array}
 
 
+def _lower_median_mass_index(masses):
+    i = np.argsort(masses)
+    k = (len(masses) - 1) // 2
+    idx = i[k]
+    return idx, masses[idx]
+
+def lower_median_mass(spectra):
+    masses, charges = _neutral_masses(spectra)
+    i, m = _lower_median_mass_index(masses)
+    z = charges[i]
+    return (m + z*H) / z, z
+
+def lower_median_mass_rt(spectra):
+    masses, charges = _neutral_masses(spectra)
+    rts = [s['params']['rtinseconds'] for s in spectra]
+    i, m = _lower_median_mass_index(masses)
+    return rts[i]
+
 def get_cluster_id(title):
     return title.split(';', 1)[0]
 
@@ -113,10 +131,14 @@ def naive_average_mass_and_charge(spectra):
         raise ValueError('There are different charge states in the cluster. Cannot average precursor m/z.')
     return sum(mzs) / len(mzs), charges.pop()[0]
 
-def neutral_average_mass_and_charge(spectra):
+def _neutral_masses(spectra):
     mzs = [s['params']['pepmass'][0] for s in spectra]
     charges = [s['params']['charge'][0] for s in spectra if len(s['params']['charge']) == 1]
     masses = [(m*c-c*H) for m, c in zip(mzs, charges)]
+    return masses, charges
+
+def neutral_average_mass_and_charge(spectra):
+    masses, charges = _neutral_masses(spectra)
     z = int(round(sum(charges)/len(charges)))
     avg_mass = sum(masses) / len(masses)
     return (avg_mass + z*H) / z, z
@@ -145,8 +167,8 @@ def process_maracluster_mgf(fname, get_cluster=get_cluster_id,
 
 def main():
     pars = argparse.ArgumentParser()
-    pars.add_argument('input', help='MGF file with clustered spectra')
-    pars.add_argument('output', nargs='?', help='Output file (default is stdout)')
+    pars.add_argument('input', help='MGF file with clustered spectra.')
+    pars.add_argument('output', nargs='?', help='Output file (default is stdout).')
     mode = pars.add_mutually_exclusive_group(required=True)
     mode.add_argument('--single', action='store_true',
         help='If specified, input is interpreted as containing a single cluster.')
@@ -155,19 +177,22 @@ def main():
     pars.add_argument('--dyn-range', type=float, default=DYN_RANGE,
         help='Dynamic range to apply to output spectra')
     pars.add_argument('--min-fraction', type=float, default=MIN_FRACTION,
-        help='Minimum fraction of cluster spectra where MS/MS peak is present')
+        help='Minimum fraction of cluster spectra where MS/MS peak is present.')
     pars.add_argument('--mz-accuracy', type=float, default=DIFF_THRESH,
         help='Minimum distance between MS/MS peak clusters.')
     pars.add_argument('--append', action='store_true',
         help='Append to output file instead of replacing it.')
-    pars.add_argument('--rt', choices=['median'], default='median')
-    pars.add_argument('--pepmass', choices=['naive_average', 'neutral_average'], default='naive_average')
+    pars.add_argument('--rt', choices=['median', 'mass_lower_median'], default='median')
+    pars.add_argument('--pepmass', choices=['naive_average', 'neutral_average',
+        'lower_median'], default='lower_median')
 
     args = pars.parse_args()
-
-    get_rt = {'median': median_rt}[args.rt]
+    if args.pepmass == 'lower_median':
+        args.rt = 'mass_lower_median'
+    get_rt = {'median': median_rt, 'mass_lower_median': lower_median_mass_rt}[args.rt]
     get_pepmass = {'naive_average': naive_average_mass_and_charge,
-        'neutral_average': neutral_average_mass_and_charge}[args.pepmass]
+        'neutral_average': neutral_average_mass_and_charge,
+        'lower_median': lower_median_mass}[args.pepmass]
 
     kwargs = {'mz_accuracy': args.mz_accuracy, 'dyn_range': args.dyn_range, 'min_fraction': args.min_fraction}
     mode = 'wa'[args.append]
