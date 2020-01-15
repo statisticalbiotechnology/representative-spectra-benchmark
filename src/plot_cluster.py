@@ -48,7 +48,7 @@ def plot_spectrum(identifier,precursor_mz,precursor_charge, mz,intensity,retenti
 
 
 def main(mzml_file,cluster_file,msms_file,scan):
-    scans, tmp_scans,peptide = set(), set(), ""
+    scans, tmp_scans, peptide, spectra = set(), set(), "", []
     with open(cluster_file) as cluster_def:
         for line in cluster_def:
             if line.isspace():
@@ -76,15 +76,19 @@ def main(mzml_file,cluster_file,msms_file,scan):
                     spec.ID, ms_level=spec.ms_level, scan_time=spec.scan_time_in_minutes()
                     )
             )
+            spectra.append(spec)
             #try:
             #    spec._selected_precursors
             #except AttributeError:
             #    spec._selected_precursors = None
             precursors = spec.selected_precursors
             print(precursors[0]["mz"],precursors[0]["charge"])
-            plot_spectrum(spec.ID,precursors[0]["mz"],precursors[0]["charge"], spec.mz,spec.i,spec.scan_time_in_minutes(),peptide)
+            plot_spectrum(spec.ID,precursors[0]["mz"],precursors[0]["charge"], np.array(spec.mz),np.array(spec.i),spec.scan_time_in_minutes(),peptide)
     print("Parsed {0} spectra from file {1}".format(n, mzml_file))
+#    average_merge(spectra)
 
+#def average_merge(spectra):
+#
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
