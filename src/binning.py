@@ -205,6 +205,45 @@ class RepresentativeSpectrumCreator:
         charges = merged_spectrum['precursor_charges']
         assert all(x == charges[0] for x in charges), "Not all precursor charges in cluster are equal"
 
+        #### Try to handle the case where a single peak is split on a bin boundary
+        #### Create a temporary array of mzs that are correct means
+        merged_mzs  = merged_spectrum['mzs']
+        merged_mzs[merged_mzs == 0] = np.nan
+        merged_mzs = np.divide(merged_mzs, merged_spectrum['n_peaks'])
+
+        #### Subtract the mzs from their previous mz
+        delta_index = np.arange(0,len(merged_mzs),1) - 1
+        delta_index[0] = 0
+        mz_deltas = merged_mzs - merged_mzs[delta_index]
+        mz_deltas[np.isnan(mz_deltas)] = 0
+
+        #### Find cases where the deltas are smaller than half the bin size
+        small_mz_deltas = mz_deltas[ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
+        #if 0:
+        if len(small_mz_deltas) > 0:
+            #### Get a list of indexes of the split bin cases
+            small_mz_deltas_mask = mz_deltas
+            small_mz_deltas_mask[ mz_deltas == 0 ] = -1
+            small_mz_deltas_mask[ mz_deltas >= binsize/2 ] = -1
+            small_mz_deltas_index = delta_index[ small_mz_deltas_mask > -1 ]
+
+            #print(small_mz_deltas_index.tolist())
+            #print(small_mz_deltas.tolist())
+            #print(merged_mzs[small_mz_deltas_index].tolist())
+            #print(merged_mzs[small_mz_deltas_index+1].tolist())
+            #print(merged_spectrum['intensities'][small_mz_deltas_index].tolist())
+            #print(merged_spectrum['intensities'][small_mz_deltas_index+1].tolist())
+            #print(merged_spectrum['n_peaks'][small_mz_deltas_index].tolist())
+            #print(merged_spectrum['n_peaks'][small_mz_deltas_index+1].tolist())
+
+            #### Consolidate all the split mzs, n_peaks, intensities into one bin
+            merged_spectrum['mzs'][small_mz_deltas_index] += merged_spectrum['mzs'][small_mz_deltas_index+1]
+            merged_spectrum['n_peaks'][small_mz_deltas_index] += merged_spectrum['n_peaks'][small_mz_deltas_index+1]
+            merged_spectrum['intensities'][small_mz_deltas_index] += merged_spectrum['intensities'][small_mz_deltas_index+1]
+            merged_spectrum['mzs'][small_mz_deltas_index+1] = 0
+            merged_spectrum['n_peaks'][small_mz_deltas_index+1] = 0
+            merged_spectrum['intensities'][small_mz_deltas_index+1] = 0
+
         # Take the mean of all peaks per bin
         merged_spectrum['intensities'][merged_spectrum['n_peaks'] < peak_quorum] = np.nan
         merged_spectrum['intensities'] = np.divide(merged_spectrum['intensities'], merged_spectrum['n_peaks'])
@@ -213,13 +252,25 @@ class RepresentativeSpectrumCreator:
         nan_mask = ~np.isnan(merged_spectrum['intensities'])
         merged_spectrum['intensities'] = merged_spectrum['intensities'][nan_mask]
 
-        #### EWD Changed this from just the bin size computation to taking the mean of mz values in the bin
-        #merged_spectrum['mzs'] = np.arange(
-        #    minimum + (binsize / 2), maximum + binsize, binsize, dtype=np.int32
-        #)[nan_mask]
+        #### Compute the mean of mz values in the bin
         merged_spectrum['mzs'][merged_spectrum['mzs'] == 0] = np.nan
         merged_spectrum['mzs'] = np.divide(merged_spectrum['mzs'], merged_spectrum['n_peaks'])
         merged_spectrum['mzs'] = merged_spectrum['mzs'][nan_mask]
+        merged_spectrum['n_peaks'] = merged_spectrum['n_peaks'][nan_mask]
+
+        '''
+        #### Look again at too-close peaks
+        delta_index = np.arange(0,len(merged_spectrum['mzs']),1) - 1
+        delta_index[0] = 0
+        mz_deltas = merged_spectrum['mzs'] - merged_spectrum['mzs'][delta_index]
+        small_mz_deltas = mz_deltas[ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
+        print(small_mz_deltas.tolist())
+        small_mz_deltas_mzs = merged_spectrum['mzs'][ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
+        print(small_mz_deltas_mzs.tolist())
+        small_mz_deltas_n_peaks = merged_spectrum['n_peaks'][ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
+        print(small_mz_deltas_n_peaks.tolist())
+        sys.exit(3)
+        '''
 
         merged_spectrum['precursor_mz'] = np.mean(merged_spectrum['precursor_mzs'])
         merged_spectrum['precursor_charge'] = charges[0]
