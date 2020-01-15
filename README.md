@@ -12,9 +12,13 @@ The html version of this page can be reached [here](https://statisticalbiotechno
 
 ## Core contributors and Collaborators (Please add your name here):
 
- - [Timo Sachsenberg](sachsenb@informatik.uni-tuebingen.de), Univ. of Tübingen, Germany
- - [Eric Deutsch](edeutsch@systemsbiology.org), ISB, USA
- - [Yasset Perez-Riverol](yperez@ebi.ac.uk), EBI, UK
- - [Lukas Käll](lukas.kall@scilifelab.se), KTH, Sweden
-
- 
+ - [Wout Bittremieux](mailto:wout.bittremieux@health.ucsd.edu), UCSD, USA
+ - [Michael Turewicz](mailto:michael.turewicz@rub.de), Ruhr-University Bochum, Germany
+ - [Ralf Gabriels](mailto:ralf.gabriels@ugent.be), VIB-UGent Center for Medical Biotechnology, Belgium
+ - [Timo Sachsenberg](mailto:sachsenb@informatik.uni-tuebingen.de), Univ. of Tübingen, Germany
+ - [Eric Deutsch](mailto:edeutsch@systemsbiology.org), ISB, USA
+ - [Yasset Perez-Riverol](mailto:yperez@ebi.ac.uk), EBI, UK
+ - [Lukas Käll](mailto:lukas.kall@scilifelab.se), KTH, Sweden
+ - [Julia Bubis](mailto:juliabubis@gmail.com), INEPCP RAS, Russia
+ - [Mark Ivanov](mailto:markmipt@gmail.com), INEPCP RAS, Russia
+ - [Lev Levitsky](mailto:lev.levitsky@phystech.edu), INEPCP RAS, Russia

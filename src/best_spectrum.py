@@ -1,67 +1,11 @@
 import collections
-import sys
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable
 
+import click
 import pandas as pd
-from pyteomics import mgf
 import spectrum_utils.spectrum as sus
 
-
-def get_cluster_spectra(mgf_filename: str) -> Dict[str, sus.MsmsSpectrum]:
-    """
-    Read all spectra from the given MGF file corresponding to a single cluster.
-
-    Parameters
-    ----------
-    mgf_filename : str
-        The file name of the MGF file to be read.
-
-    Returns
-    -------
-    Dict[str, sus.MsmsSpectrum]
-        A dictionary with as keys the scan numbers and as values the
-        corresponding spectra.
-    """
-    spectra = {}
-    for spectrum_dict in mgf.read(mgf_filename):
-        # TODO: Make sure the USI doesn't contain a peptide identification.
-        cluster, usi = spectrum_dict['params']['title'].split(';')
-        spectrum = sus.MsmsSpectrum(
-            usi,
-            spectrum_dict['params']['pepmass'][0],
-            spectrum_dict['params']['charge'][0],
-            spectrum_dict['m/z array'],
-            spectrum_dict['intensity array'],
-            retention_time=spectrum_dict['params']['rtinseconds'])
-        spectrum.cluster = cluster
-        if usi in spectra:
-            raise ValueError(f'Non-unique USI: {usi}')
-        spectra[usi] = spectrum
-    return spectra
-
-
-def get_scores(score_filename: str) -> pd.Series:
-    """
-    Read the PSM scores from the given MaxQuant identifications file.
-
-    Parameters
-    ----------
-    score_filename : str
-        The file name of the MaxQuant identifications file (msms.txt).
-
-    Returns
-    -------
-    pd.Series
-        A `Series` with as index the USI and as values the MaxQuant
-        identification scores.
-    """
-    scores = pd.read_csv(score_filename, sep='\t',
-                         usecols=['Raw file', 'Scan number', 'Score'])
-    # FIXME: Don't hardcode the PXD identifier.
-    scores['usi'] = ('mzspec:PXD004732:' + scores['Raw file'] +
-                     '.raw::scan:' + scores['Scan number'].astype(str))
-    scores = scores.set_index('usi')
-    return scores['Score'].sort_index()
+import ms_io
 
 
 def get_best_representative(spectra: Dict[str, sus.MsmsSpectrum],
@@ -100,29 +44,6 @@ def get_best_representative(spectra: Dict[str, sus.MsmsSpectrum],
     return spectra[scores.idxmax()]
 
 
-def write_mgf(filename: str, spectra: List[sus.MsmsSpectrum]) -> None:
-    """
-    Write the given spectra to an MGF file.
-
-    Parameters
-    ----------
-    filename : str
-        The file name of the MGF output file.
-    spectra : List[sus.MsmsSpectrum]
-        The spectra to be written to the MGF file.
-    """
-    spectra_dict = [{'m/z array': spectrum.mz,
-                     'intensity array': spectrum.intensity,
-                     'params': {'title': (f'{spectrum.cluster};'
-                                          f'{spectrum.identifier}'),
-                                'pepmass': spectrum.precursor_mz,
-                                'rtinseconds': spectrum.retention_time,
-                                'charge': spectrum.precursor_charge}}
-                    for spectrum in spectra]
-    with open(filename, 'w') as f_out:
-        mgf.write(spectra_dict, f_out)
-
-
 def split_into_clusters(spectra: Dict[str, sus.MsmsSpectrum]) \
         -> Iterable[Dict[str, sus.MsmsSpectrum]]:
     """
@@ -148,32 +69,45 @@ def split_into_clusters(spectra: Dict[str, sus.MsmsSpectrum]) \
         yield {usi: spectra[usi] for usi in cluster_members}
 
 
-def best_spectrum(mgf_in_filename: str, mgf_out_filename: str,
-                  scores_filename: str) -> None:
+@click.command('best_spectrum',
+               short_help='Select cluster representatives with the highest '
+                          'search engine score')
+@click.option('--filename_mgf_in', '-s',
+              help='MGF file containing the spectra')
+@click.option('--filename_mgf_out', '-o',
+              help='Output MGF file name containing the cluster '
+                   'representatives')
+@click.option('--filename_msms', '-m',
+              help='File containing MaxQuant identifications (msms.txt)')
+@click.option('--px_accession', '-a', help='ProteomeXchange accession of the '
+                                           'project (used to compile USIs)')
+def best_spectrum(filename_mgf_in: str, filename_mgf_out: str,
+                  filename_msms: str, px_accession: str) -> None:
     """
     Represent clusters by their highest scoring member.
 
     Parameters
     ----------
-    mgf_in_filename : str
+    filename_mgf_in : str
         The file name of the MGF input file that contains the original spectra.
-    mgf_out_filename : str
+    filename_mgf_out : str
         The file name of the MGF output file that contains the cluster
         representatives.
-    scores_filename : str
+    filename_msms : str
         The file name of the MaxQuant identifications file containing PSM
         scores.
+    px_accession : str
+        ProteomeXchange accession of the project (used to compile USIs).
     """
-    scores = get_scores(scores_filename)
-    spectra = get_cluster_spectra(mgf_in_filename)
+    scores = ms_io.read_maxquant_psms(filename_msms, px_accession)['Score']
+    spectra = ms_io.read_cluster_spectra(filename_mgf_in)
     representatives = []
     for cluster in split_into_clusters(spectra):
         try:
-            representatives.append(get_best_representative(cluster, scores))
+            representative = get_best_representative(cluster, scores)
+            representative.identifier = (f'{representative.cluster};'
+                                         f'{representative.identifier}')
+            representatives.append(ms_io._spectrum_to_dict(representative))
         except ValueError:
             pass
-    write_mgf(mgf_out_filename, representatives)
-
-
-if __name__ == '__main__':
-    best_spectrum(sys.argv[1], sys.argv[2], sys.argv[3])
+    ms_io.write_mgf(filename_mgf_out, representatives)
