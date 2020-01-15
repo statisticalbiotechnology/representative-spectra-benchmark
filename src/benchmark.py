@@ -28,7 +28,6 @@ def cos_dist(representative_spectrum, cluster_member):
     else:
         return ab/np.sqrt(a*b)
 
-
 def average_cos_dist(representative_spectrum, cluster_members):
     sum_dist = 0.0
     for member in cluster_members:
@@ -62,6 +61,7 @@ def fraction_of_by(peptide_seq, precursor_mz, precursor_charge,mz, intensity):
         return 0.0
 
 if __name__ == "__main__":
+    # If the library is called as main, run some rudementary tests of the functions
 
     for spectrum_dict in mgf.read("data/clusters_maracluster.mgf"):
 #    for spectrum_dict in mgf.read("data/.mgf"):
@@ -73,3 +73,8 @@ if __name__ == "__main__":
         break
 
     print (fraction_of_by(peptide_seq, precursor_mz, precursor_charge,mz, intensity))
+
+    spec = sus.MsmsSpectrum(
+        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity)
+
+    print(average_cos_dist(spec, [spec]))
