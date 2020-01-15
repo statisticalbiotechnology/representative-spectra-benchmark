@@ -16,5 +16,6 @@ The html version of this page can be reached [here](https://statisticalbiotechno
  - [Eric Deutsch](edeutsch@systemsbiology.org), ISB, USA
  - [Yasset Perez-Riverol](yperez@ebi.ac.uk), EBI, UK
  - [Lukas Käll](lukas.kall@scilifelab.se), KTH, Sweden
+ - [Michael Turewicz] (michael.turewicz@rub.de), Ruhr-University Bochum, Germany
 
  
