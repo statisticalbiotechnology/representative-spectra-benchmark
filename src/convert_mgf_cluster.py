@@ -14,6 +14,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 def print_help():
+    """
+    This method provide a general help for the framework
+    :return:
+    """
     ctx = click.get_current_context()
     click.echo(ctx.get_help())
     ctx.exit()
