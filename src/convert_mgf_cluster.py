@@ -1,17 +1,31 @@
 import click
-from pyteomics import mgf, mzml
+from pyteomics import mgf
 from pyopenms import *
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 def print_help():
+    """
+    This method provide a general help for the framework
+    :return:
+    """
     ctx = click.get_current_context()
     click.echo(ctx.get_help())
     ctx.exit()
 
 
-def buid_usi_accession(cluster_id, peptide_sequence, scan, px_accession, raw_name, charge):
+def build_usi_accession(cluster_id : str, peptide_sequence : str, scan : int, px_accession : str, raw_name : str, charge : int):
+    """
+    This method allows to create a usi for each spectrum
+    :param cluster_id: Cluster identifier
+    :param peptide_sequence:  Peptide Sequence
+    :param scan: Scan Number
+    :param px_accession: ProteomeXchange Accession
+    :param raw_name: RAW Name in ProteomeXchange Project
+    :param charge: Charge state for the Identification
+    :return:
+    """
     usi = cluster_id + ";" + 'mzspec' + ":" + px_accession + ":" + raw_name + ":" + "scan:" + str(scan)
     if peptide_sequence is not None:
         usi = usi + ":" + peptide_sequence + "/" + str(charge)
@@ -19,6 +33,11 @@ def buid_usi_accession(cluster_id, peptide_sequence, scan, px_accession, raw_nam
 
 
 def read_peptides(mq_msms):
+    """
+    This method provides a way to retrieve peptide information from MaxQaunt msms.txt file
+    :param mq_msms: MSMS.txt file from MaxQuant
+    :return: Dictionary where the key is the scan and the value is peptide sequence
+    """
     peptides = {}
     with open(mq_msms) as mq_peptides:
         next(mq_peptides)  # skip header
@@ -30,11 +49,17 @@ def read_peptides(mq_msms):
     return peptides
 
 
-def read_clusters(mrcluster_clusters):
+def read_clusters(mracluster_file):
+    """
+    This method read a cluster information from MaRcluster algorithm into a dictionary, where
+    the key is the scan of the spectrum and the value the cluster accession
+    :param mracluster_file: MraCluster file input
+    :return: A dictionary of spectra and clusters
+    """
     clusters = {}
     cluster_prefix = 'cluster-'
     cluster_index = 1
-    with open(mrcluster_clusters) as cluster_def:
+    with open(mracluster_file) as cluster_def:
         for line in cluster_def:
             if not line.strip():
                 cluster_index = cluster_index + 1
@@ -58,6 +83,10 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
     # Read the input spectra
     input_spectra = mgf.read(mgf_file)
     spectra_list = list(input_spectra)
+    spectra_dic = {}
+    for spectrum in spectra_list:
+        scan = spectrum['params']['title'].split("=")[-1]
+        spectra_dic[int(scan)] = spectrum
     print('Number of Spectra: ' + str(len(spectra_list)))
 
     # Read the msms.txt files using, for now the peptides will be a dictionary, where the key is the scan number
@@ -71,19 +100,21 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
     clusters = read_clusters(mrcluster_clusters)
     print("Number of Clusters: " + str(len(clusters)))
 
+    final_spectra = []
     for scan in clusters:
         print('scan: ' + str(scan))
-        for spectra in spectra_list:
-            if spectra['params']['title'].endswith('scan=' + str(scan)):
-                cluster_accession = clusters[scan]
-                if scan not in peptides:
-                    peptide_sequence = None
-                else:
-                    peptide_sequence = peptides[scan]
-                charge = int(spectra['params']['charge'][0])
-                spectra['params']['title'] = buid_usi_accession(cluster_accession, peptide_sequence, scan, px_accession,
-                                                                raw_name, charge)
-                mgf.write([spectra], output)
+        if scan in spectra_dic:
+            cluster_accession = clusters[scan]
+            spectrum = spectra_dic[scan]
+            if scan not in peptides:
+                peptide_sequence = None
+            else:
+                peptide_sequence = peptides[scan]
+            charge = int(spectrum['params']['charge'][0])
+            spectrum['params']['title'] = build_usi_accession(cluster_accession, peptide_sequence, scan, px_accession,
+                                                              raw_name, charge)
+            final_spectra.append(spectrum)
+    mgf.write(final_spectra, output)
 
 
 @click.command('convert-mq-marcluster-mzml', short_help='Command to convert MaxQuant Results and MaCluster into MGF')
@@ -133,6 +164,7 @@ def convert_mq_mracluster_mzml(mq_msms, mrcluster_clusters, mzml_file, output, p
 
     MzMLFile().store(output, new_exp)
 
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
     """This is the main tool that give access to all commands and options provided by the pypgatk"""
@@ -143,9 +175,3 @@ cli.add_command(convert_mq_mracluster_mzml)
 
 if __name__ == "__main__":
     cli()
-
-# <cvParam cvRef="MS" accession="MS:1000511" value="1" name="ms level" />
-# https://www.ebi.ac.uk/ols/ontologies/ms/terms?iri=http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FMS_1000889
-
-# <userParam name="[Thermo Trailer Extra]Monoisotopic M/Z:" type="xsd:float" value="665.8334" />
-# <userParam name="Cluster accession" type="xsd:string" value="cluster-1" />
