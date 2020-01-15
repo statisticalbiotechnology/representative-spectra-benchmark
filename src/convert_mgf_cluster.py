@@ -56,8 +56,7 @@ def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
             spectrum.identifier = f'cluster-{cluster_i};{spectrum.identifier}'
             spectrum_dict = ms_io._spectrum_to_dict(spectrum)
             spectra_dicts.append(spectrum_dict)
-    with open(filename_out, 'w') as f_out:
-        pyteomics.mgf.write(spectra_dicts, f_out)
+    ms_io.write_mgf(filename_out, spectra_dicts)
 
 
 @click.command('convert-mq-marcluster-mzml', short_help='Command to convert MaxQuant Results and MaCluster into MGF')

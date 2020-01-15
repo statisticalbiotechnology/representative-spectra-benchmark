@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Dict
+from typing import Dict, Iterable
 
 import pandas as pd
 import pyteomics.mgf
@@ -25,7 +25,7 @@ def read_cluster_spectra(mgf_filename: str) -> Dict[str, sus.MsmsSpectrum]:
     spectra = {}
     for spectrum_dict in pyteomics.mgf.read(mgf_filename):
         spectrum = _dict_to_spectrum(spectrum_dict)
-        title = re.match(r'(cluster-\d+);(mzspec:\w+:\w+:(scan|index):\d+)',
+        title = re.match(r'(cluster-\d+);(mzspec:\w+:.+:(scan|index):\d+)',
                          spectrum.identifier)
         spectrum.cluster, spectrum.identifier = title.group(1), title.group(2)
         if spectrum.identifier in spectra:
@@ -105,3 +105,18 @@ def _build_usi(px_accession: str, raw_name: str, scan: int,
     if cluster_id is not None:
         usi = f'{cluster_id};{usi}'
     return usi
+
+
+def write_mgf(filename: str, spectra: Iterable[Dict]) -> None:
+    """
+    Write the given spectra to an MGF file.
+
+    Parameters
+    ----------
+    filename : str
+        The file name of the MGF output file.
+    spectra : List[Dict]
+        The spectra as Pyteomics dictionaries to be written to the MGF file.
+    """
+    with open(filename, 'w') as f_out:
+        pyteomics.mgf.write(spectra, f_out)
