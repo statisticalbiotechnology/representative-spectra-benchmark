@@ -1,3 +1,4 @@
+click
 alabaster
 altair
 altgraph
