@@ -17,4 +17,3 @@ The html version of this page can be reached [here](https://statisticalbiotechno
  - [Yasset Perez-Riverol](yperez@ebi.ac.uk)
  - [Lukas Käll](lukas.kall@scilifelab.se)
 
- 
