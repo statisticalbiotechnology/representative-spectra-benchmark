@@ -94,7 +94,7 @@ class RepresentativeSpectrumCreator:
                 if spectrum['ms level'] == 2 and 'm/z array' in spectrum:
                     precursor_mz = spectrum['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['selected ion m/z']
                     precursor_charge = spectrum['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state']
-                    print(f"INFO: Reading {scan}. Precursor m/z = {precursor_mz}")
+                    print(f"INFO: Reading {scan}. Precursor m/z = {precursor_mz}. n peaks={len(spectrum['m/z array'])}")
                     peaklist = {
                         'm/z array': spectrum['m/z array'],
                         'intensity array': spectrum['intensity array'],
@@ -143,6 +143,8 @@ class RepresentativeSpectrumCreator:
 
             merged_spectrum['n_peaks'][bin_array] += 1
             merged_spectrum['intensities'][bin_array] += intensity_array
+            merged_spectrum['mzs'][bin_array] += mz_array
+
             merged_spectrum['precursor_mzs'].append(peaklist['precursor mz'])
             merged_spectrum['precursor_charges'].append(peaklist['precursor charge'])
 
@@ -157,9 +159,15 @@ class RepresentativeSpectrumCreator:
         # Only return non-zero intensity bins
         nan_mask = ~np.isnan(merged_spectrum['intensities'])
         merged_spectrum['intensities'] = merged_spectrum['intensities'][nan_mask]
-        merged_spectrum['mzs'] = np.arange(
-            minimum + (binsize / 2), maximum + binsize, binsize, dtype=np.int32
-        )[nan_mask]
+
+        #### EWD Changed this from just the bin size computation to taking the mean of mz values in the bin
+        #merged_spectrum['mzs'] = np.arange(
+        #    minimum + (binsize / 2), maximum + binsize, binsize, dtype=np.int32
+        #)[nan_mask]
+        merged_spectrum['mzs'][merged_spectrum['mzs'] == 0] = np.nan
+        merged_spectrum['mzs'] = np.divide(merged_spectrum['mzs'], merged_spectrum['n_peaks'])
+        merged_spectrum['mzs'] = merged_spectrum['mzs'][nan_mask]
+
         merged_spectrum['precursor_mz'] = np.mean(merged_spectrum['precursor_mzs'])
         merged_spectrum['precursor_charge'] = charges[0]
 
@@ -176,7 +184,7 @@ class RepresentativeSpectrumCreator:
 TITLE={i}
 PEPMASS={spectrum['precursor_mz']}
 CHARGE={spectrum['precursor_charge']}+
-    """
+"""
             for mz, intensity in zip(spectrum['mzs'], spectrum['intensities']):
                 if not np.isnan(intensity):
                     mgf_tmp += f"{mz} {intensity}\n"
@@ -215,7 +223,7 @@ def main():
 
     peaklists = rsc.read_spectra(params.mzml_file,clusters[int(params.cluster)])
 
-    rsc_spectrum = rsc.combine_bin_mean(peaklists, minimum=100, maximum=2000, binsize=0.002)
+    rsc_spectrum = rsc.combine_bin_mean(peaklists, minimum=100, maximum=2000, binsize=0.02)
     print(f"Final spectrum has {len(rsc_spectrum['intensities'])} elements")
     print(rsc_spectrum)
 
