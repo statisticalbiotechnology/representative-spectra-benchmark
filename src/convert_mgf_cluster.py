@@ -77,6 +77,7 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
     clusters = read_clusters(mrcluster_clusters)
     print("Number of Clusters: " + str(len(clusters)))
 
+    final_spectra = []
     for scan in clusters:
         print('scan: ' + str(scan))
         if scan in spectra_dic:
@@ -89,7 +90,8 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
             charge = int(spectrum['params']['charge'][0])
             spectrum['params']['title'] = buid_usi_accession(cluster_accession, peptide_sequence, scan, px_accession,
                                                                 raw_name, charge)
-            mgf.write([spectrum], output)
+            final_spectra.append(spectrum)
+    mgf.write(final_spectra, output)
 
 
 @click.command('convert-mq-marcluster-mzml', short_help='Command to convert MaxQuant Results and MaCluster into MGF')
