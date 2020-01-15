@@ -19,5 +19,6 @@ The html version of this page can be reached [here](https://statisticalbiotechno
  - [Eric Deutsch](mailto:edeutsch@systemsbiology.org), ISB, USA
  - [Yasset Perez-Riverol](mailto:yperez@ebi.ac.uk), EBI, UK
  - [Lukas Käll](mailto:lukas.kall@scilifelab.se), KTH, Sweden
-
- 
+ - [Julia Bubis](mailto:juliabubis@gmail.com), INEPCP RAS, Russia
+ - [Mark Ivanov](mailto:markmipt@gmail.com), INEPCP RAS, Russia
+ - [Lev Levitsky](mailto:lev.levitsky@phystech.edu), INEPCP RAS, Russia
