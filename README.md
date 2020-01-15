@@ -12,6 +12,7 @@ The html version of this page can be reached [here](https://statisticalbiotechno
 
 ## Core contributors and Collaborators (Please add your name here):
 
+ - [Michael Turewicz] (mailto:michael.turewicz@rub.de), Ruhr-University Bochum, Germany
  - [Ralf Gabriels](mailto:ralf.gabriels@ugent.be), VIB-UGent Center for Medical Biotechnology, Belgium
  - [Timo Sachsenberg](mailto:sachsenb@informatik.uni-tuebingen.de), Univ. of Tübingen, Germany
  - [Eric Deutsch](mailto:edeutsch@systemsbiology.org), ISB, USA
