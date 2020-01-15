@@ -5,6 +5,7 @@ from pyteomics import mgf, mass
 
 DIFF_THRESH = 0.01
 DYN_RANGE = 1000
+MIN_FRACTION = 0.5
 H = mass.nist_mass['H+'][0][0]
 
 
@@ -30,6 +31,7 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
     '''
     mz_accuracy = kwargs.get('mz_accuracy', DIFF_THRESH)
     dyn_range = kwargs.get('dyn_range', DYN_RANGE)
+    min_fraction = kwargs.get('min_fraction', MIN_FRACTION)
     mz_arrays, int_arrays = [], []
     n = 0 # number of spectra
     for s in spectra:
@@ -55,16 +57,20 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
         mz_array_sum = np.cumsum(mz_array_all)
         intensity_array_sum = np.cumsum(intensity_array_all)
 
-        new_mz_array.append(mz_array_sum[i_prev-1]/(i_prev))
-        new_intensity_array.append(intensity_array_sum[i_prev-1]/n)
+        min_l = min_fraction * n
+        if i_prev >= min_l:
+            new_mz_array.append(mz_array_sum[i_prev-1]/(i_prev))
+            new_intensity_array.append(intensity_array_sum[i_prev-1]/n)
 
         for i in ind_list[1:-1]:
-            new_mz_array.append((mz_array_sum[i-1]-mz_array_sum[i_prev-1])/(i-i_prev))
-            new_intensity_array.append((intensity_array_sum[i-1]-intensity_array_sum[i_prev-1])/n)
+            if i - i_prev >= min_l:
+                new_mz_array.append((mz_array_sum[i-1]-mz_array_sum[i_prev-1])/(i-i_prev))
+                new_intensity_array.append((intensity_array_sum[i-1]-intensity_array_sum[i_prev-1])/n)
             i_prev = i
 
-        new_mz_array.append((mz_array_sum[-1] - mz_array_sum[i_prev-1])/(len(mz_array_sum) - i_prev))
-        new_intensity_array.append((intensity_array_sum[-1] - intensity_array_sum[i_prev-1])/n)
+        if (len(mz_array_sum) - i_prev) >= min_l:
+            new_mz_array.append((mz_array_sum[-1] - mz_array_sum[i_prev-1])/(len(mz_array_sum) - i_prev))
+            new_intensity_array.append((intensity_array_sum[-1] - intensity_array_sum[i_prev-1])/n)
     else:
         new_mz_array = mz_arrays[0]
         new_intensity_array = int_arrays[0]
@@ -134,6 +140,8 @@ def main():
         help='Process an MGF with cluster IDs encoded in titles.')
     pars.add_argument('--dyn-range', type=float, default=DYN_RANGE,
         help='Dynamic range to apply to output spectra')
+    pars.add_argument('--min-fraction', type=float, default=MIN_FRACTION,
+        help='Minimum fraction of cluster spectra where MS/MS peak is present')
     pars.add_argument('--mz-accuracy', type=float, default=DIFF_THRESH,
         help='Minimum distance between MS/MS peak clusters.')
     pars.add_argument('--append', action='store_true',
@@ -147,7 +155,7 @@ def main():
     get_pepmass = {'naive_average': naive_average_mass_and_charge,
         'neutral_average': neutral_average_mass_and_charge}[args.pepmass]
 
-    kwargs = {'mz_accuracy': args.mz_accuracy, 'dyn_range': args.dyn_range}
+    kwargs = {'mz_accuracy': args.mz_accuracy, 'dyn_range': args.dyn_range, 'min_fraction': args.min_fraction}
     mode = 'wa'[args.append]
     if args.single:
         spectra = list(mgf.read(args.input))
