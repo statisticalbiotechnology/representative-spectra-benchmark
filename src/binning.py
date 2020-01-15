@@ -1,36 +1,29 @@
 #!/usr/bin/env python3
-import sys
-def eprint(*args, **kwargs): print(*args, file=sys.stderr, **kwargs)
 
-#### Import some standard modules
-import os
+# Standard library
 import argparse
-import os.path
-import timeit
-import re
-import json
-import numpy as np
 import gzip
+import json
+import os
+import re
+import sys
+import timeit
+
+# Third party
+import numpy as np
 from pyteomics import mzml, auxiliary
 
 
-####################################################################################################
-#### mzML Assessor class
 class RepresentativeSpectrumCreator:
+    """Create a representative spectrum."""
 
-
-    ####################################################################################################
-    #### Constructor
     def __init__(self, verbose=None):
-
-        #### Set verbosity
+        # Set verbosity
         if verbose is None: verbose = 0
         self.verbose = verbose
 
-
-    ####################################################################################################
-    #### Read cluster list
     def read_cluster_list(self,file):
+        """ Read MaRacluster file """
 
         clusters = []
         cluster = []
@@ -43,7 +36,6 @@ class RepresentativeSpectrumCreator:
                 if len(columns) == 0:
                     clusters.append(cluster)
                     icluster += 1
-                    #print(f"Cluster {icluster} has {len(cluster)} spectra")
                     cluster = []
                     continue
                 cluster.append(columns[1])
@@ -51,46 +43,45 @@ class RepresentativeSpectrumCreator:
         return(clusters)
 
 
-    ####################################################################################################
-    #### Read spectra
     def read_spectra(self,mzml_file,scan_list):
+        """ Read spectra from mzML file for given list of scan numbers. """
 
-        #### Set up information
+        # Set up information
         t0 = timeit.default_timer()
         stats = { 'n_spectra': 0, 'n_ms1_spectra': 0, 'n_ms2_spectra': 0, 'n_HCD_spectra': 0, 'n_IT_spectra': 0, 'n_ETD_spectra': 0,
             'high_accuracy_precursors': 'unknown', 'fragmentation_type': 'unknown' }
 
-        #### Show information
+        # Show information
         n_scans = len(scan_list)
         if self.verbose >= 1:
             eprint(f"INFO: Reading {n_scans} scans from mzML file {mzml_file}")
             progress_intro = False
 
-        #### Put spectra in a list
+        # Put spectra in a list
         spectra = []
 
-        #### If the mzML is gzipped, then open with zlib, else a plain open
+        # If the mzML is gzipped, then open with zlib, else a plain open
         match = re.search('\.gz$',mzml_file)
         if match:
             infile = gzip.open(mzml_file)
         else:
             infile = open(mzml_file, 'rb')
 
-        #### Read spectra from the file
+        # Read spectra from the file
         with mzml.read(infile) as reader:
 
             for scan in scan_list:
                 spectrum = reader.get_by_id(f"controllerType=0 controllerNumber=1 scan={scan}")
 
-                #### Testing. Print the data structure of the first spectrum
+                # Testing. Print the data structure of the first spectrum
                 #if stats['n_spectra'] == 0:
                 #    auxiliary.print_tree(spectrum)
 
-                #### Set a default spectrum type
+                # Set a default spectrum type
                 spectrum_type = 'default'
                 filter_string = None
 
-                #### If the ms level is 2, then examine it for information
+                # If the ms level is 2, then examine it for information
                 if spectrum['ms level'] == 2 and 'm/z array' in spectrum:
                     precursor_mz = spectrum['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['selected ion m/z']
                     precursor_charge = spectrum['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state']
@@ -105,7 +96,7 @@ class RepresentativeSpectrumCreator:
                 else:
                     print(f"ERROR: scan {scan} is not ms_level=2! Skipping")
 
-                #### Update counters and print progress
+                # Update counters and print progress
                 stats['n_spectra'] += 1
 
         infile.close()
@@ -167,7 +158,28 @@ class RepresentativeSpectrumCreator:
         return clusters
 
 
-    def combine_bin_mean(self, peaklists, minimum=100, maximum=2000, binsize=0.02, apply_peak_quorum=True):
+    def bin_spectra(self, peaklists, minimum=100, maximum=2000, binsize=0.02, peak_quorum=0.25):
+        """
+        Combine peaklists into one representative spectrum using binning.
+        
+        The representative spectrum will contain the mean intensities and mean m/z
+        values of all peaks in a given bin. Bins with less peaks than a given peak
+        quorum (percentage of total number of spectra that will be combined) will be
+        ignored. Peaks in the representative spectrum that are closer together then
+        half the binsize will get averaged into one peak.
+
+        Positional arguments:
+        peaklists -- list of dictionaries with peak lists that are to be combined
+
+        Keyword arguments:
+        minimum -- minimum m/z value in Dalton to include in the representative spectrum
+        (default: 100)
+        maximum -- maximum m/z value in Dalton to include in the representative spectrum
+        (default: 2000)
+        binsize -- size of each bin in Dalton (default: 0.02)
+        peak_quorum -- minimum percentage of peaks to the total number of spectra in the
+        cluster for a peak to be included in the representative spectrum (default: 0.25)
+        """
 
         array_size = int( (maximum - minimum ) / binsize ) + 1
         merged_spectrum = { 'minimum': minimum, 'maximum': maximum, 'binsize': binsize }
@@ -177,21 +189,19 @@ class RepresentativeSpectrumCreator:
         merged_spectrum['precursor_mzs'] = []
         merged_spectrum['precursor_charges'] = []
 
-        #### Determine how many peaks need to be present to keep a final peak
-        peak_quorum = 1
-        if apply_peak_quorum is True:
-            peak_quorum = int(len(peaklists) * 0.25) + 1
+        # Determine how many peaks need to be present to keep a final peak
+        peak_quorum_int = int(len(peaklists) * peak_quorum) + 1
             
         for peaklist in peaklists:
-            #### Convert the peak lists to np arrays
+            # Convert the peak lists to np arrays
             intensity_array = np.asarray(peaklist['intensity array'])
             mz_array = np.asarray(peaklist['m/z array'])
 
-            #### Limit the np arrays to the region we're interested in
+            # Limit the np arrays to the region we're interested in
             intensity_array = intensity_array[ ( mz_array >= merged_spectrum['minimum'] ) & ( mz_array < merged_spectrum['maximum'] ) ]
             mz_array = mz_array[ ( mz_array >= merged_spectrum['minimum'] ) & ( mz_array < merged_spectrum['maximum'] ) ]
 
-            #### Compute their bin locations and store n_peaks and intensities
+            # Compute their bin locations and store n_peaks and intensities
             bin_array = (( mz_array - merged_spectrum['minimum'] ) / merged_spectrum['binsize']).astype(int)
 
             merged_spectrum['n_peaks'][bin_array] += 1
@@ -205,23 +215,23 @@ class RepresentativeSpectrumCreator:
         charges = merged_spectrum['precursor_charges']
         assert all(x == charges[0] for x in charges), "Not all precursor charges in cluster are equal"
 
-        #### Try to handle the case where a single peak is split on a bin boundary
-        #### Create a temporary array of mzs that are correct means
+        # Try to handle the case where a single peak is split on a bin boundary
+        # Create a temporary array of mzs that are correct means
         merged_mzs  = merged_spectrum['mzs']
         merged_mzs[merged_mzs == 0] = np.nan
         merged_mzs = np.divide(merged_mzs, merged_spectrum['n_peaks'])
 
-        #### Subtract the mzs from their previous mz
+        # Subtract the mzs from their previous mz
         delta_index = np.arange(0,len(merged_mzs),1) - 1
         delta_index[0] = 0
         mz_deltas = merged_mzs - merged_mzs[delta_index]
         mz_deltas[np.isnan(mz_deltas)] = 0
 
-        #### Find cases where the deltas are smaller than half the bin size
+        # Find cases where the deltas are smaller than half the bin size
         small_mz_deltas = mz_deltas[ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
         #if 0:
         if len(small_mz_deltas) > 0:
-            #### Get a list of indexes of the split bin cases
+            # Get a list of indexes of the split bin cases
             small_mz_deltas_mask = mz_deltas
             small_mz_deltas_mask[ mz_deltas == 0 ] = -1
             small_mz_deltas_mask[ mz_deltas >= binsize/2 ] = -1
@@ -236,7 +246,7 @@ class RepresentativeSpectrumCreator:
             #print(merged_spectrum['n_peaks'][small_mz_deltas_index].tolist())
             #print(merged_spectrum['n_peaks'][small_mz_deltas_index+1].tolist())
 
-            #### Consolidate all the split mzs, n_peaks, intensities into one bin
+            # Consolidate all the split mzs, n_peaks, intensities into one bin
             merged_spectrum['mzs'][small_mz_deltas_index] += merged_spectrum['mzs'][small_mz_deltas_index+1]
             merged_spectrum['n_peaks'][small_mz_deltas_index] += merged_spectrum['n_peaks'][small_mz_deltas_index+1]
             merged_spectrum['intensities'][small_mz_deltas_index] += merged_spectrum['intensities'][small_mz_deltas_index+1]
@@ -245,21 +255,21 @@ class RepresentativeSpectrumCreator:
             merged_spectrum['intensities'][small_mz_deltas_index+1] = 0
 
         # Take the mean of all peaks per bin
-        merged_spectrum['intensities'][merged_spectrum['n_peaks'] < peak_quorum] = np.nan
+        merged_spectrum['intensities'][merged_spectrum['n_peaks'] < peak_quorum_int] = np.nan
         merged_spectrum['intensities'] = np.divide(merged_spectrum['intensities'], merged_spectrum['n_peaks'])
 
         # Only return non-zero intensity bins
         nan_mask = ~np.isnan(merged_spectrum['intensities'])
         merged_spectrum['intensities'] = merged_spectrum['intensities'][nan_mask]
 
-        #### Compute the mean of mz values in the bin
+        # Compute the mean of mz values in the bin
         merged_spectrum['mzs'][merged_spectrum['mzs'] == 0] = np.nan
         merged_spectrum['mzs'] = np.divide(merged_spectrum['mzs'], merged_spectrum['n_peaks'])
         merged_spectrum['mzs'] = merged_spectrum['mzs'][nan_mask]
         merged_spectrum['n_peaks'] = merged_spectrum['n_peaks'][nan_mask]
 
-        '''
-        #### Look again at too-close peaks
+        """
+        # Look again at too-close peaks
         delta_index = np.arange(0,len(merged_spectrum['mzs']),1) - 1
         delta_index[0] = 0
         mz_deltas = merged_spectrum['mzs'] - merged_spectrum['mzs'][delta_index]
@@ -270,7 +280,7 @@ class RepresentativeSpectrumCreator:
         small_mz_deltas_n_peaks = merged_spectrum['n_peaks'][ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
         print(small_mz_deltas_n_peaks.tolist())
         sys.exit(3)
-        '''
+        """
 
         merged_spectrum['precursor_mz'] = np.mean(merged_spectrum['precursor_mzs'])
         merged_spectrum['precursor_charge'] = charges[0]
@@ -283,6 +293,7 @@ class RepresentativeSpectrumCreator:
 
 
     def write_spectrum(self, spectra, mgf_file):
+        """Write spectrum to MGF file."""
         for i, spectrum in enumerate(spectra):
             mgf_tmp = f"""BEGIN IONS
 TITLE={spectrum["cluster_id"]}
@@ -296,9 +307,8 @@ CHARGE={spectrum['precursor_charge']}+
             mgf_file.write(mgf_tmp)
 
 
-####################################################################################################
-#### For command-line usage
 def main():
+    """Command line interface."""
 
     argparser = argparse.ArgumentParser(description='Creates an index for an MSP spectral library file')
     argparser.add_argument('--verbose', action='count', help='If set, print more information about ongoing processing' )
@@ -310,11 +320,11 @@ def main():
     argparser.add_argument('--out', action='store', default='merged_spectra.mgf', help='Name of the output mgf file')
     params = argparser.parse_args()
 
-    #### Set verbose
+    # Set verbose
     verbose = params.verbose
     if verbose is None: verbose = 1
 
-    #### Print and example if not everything is provided
+    # Print and example if not everything is provided
     #if not params.mara_file or not params.mzml_file or not params.cluster:
     #    print("Example: representative_spectrum_creator.py --mzml_file ../data/01650b_BA5-TUM_first_pool_75_01_01-3xHCD-1h-R2.mzML --mara_file=../data/MaRaCluster.clusters_p30.tsv --cluster=1")
     #    print("Or use --help for additional usage information")
@@ -325,33 +335,29 @@ def main():
         print("Or use --help for additional usage information")
         sys.exit(10)
 
-    #### Create an Representative Spectrum Creator object
+    # Create an Representative Spectrum Creator object
     rsc = RepresentativeSpectrumCreator(verbose=verbose)
 
-    #### Read the cluster file from mzML and mara file
+    # Read the cluster file from mzML and mara file
     #clusters = rsc.read_cluster_list(params.mara_file)
     #peaklists = rsc.read_spectra(params.mzml_file,clusters[int(params.cluster)])
 
-    #### Read the cluster file from clustered MGF
+    # Read the cluster file from clustered MGF
     print("Reading spectra...")
     clusters = rsc.read_spectra_clustered_mgf(params.mgf_file)
 
     print("Clustering...")
     rsc_spectra = []
-    #i = 0
     for cluster_id, peaklists in clusters.items():
-        #i += 1
-        #print(f"Cluster {cluster_id} contains {len(peaklists)} spectra")
-        rsc_spectrum = rsc.combine_bin_mean(peaklists, minimum=100, maximum=2000, binsize=0.02)
+        rsc_spectrum = rsc.bin_spectra(peaklists, minimum=100, maximum=2000, binsize=0.02)
         rsc_spectrum['cluster_id'] = cluster_id
-        #print(f"Final spectrum has {len(rsc_spectrum['intensities'])} elements")
         rsc_spectra.append(rsc_spectrum)
-        #if i > 20:
-        #    break
 
+
+    # Write representative spectra to new MGF file
     with open(params.out, 'wt') as mgf_file:
         rsc.write_spectrum(rsc_spectra, mgf_file)
 
 
-#### For command line usage
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
