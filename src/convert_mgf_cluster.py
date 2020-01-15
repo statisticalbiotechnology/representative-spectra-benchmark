@@ -1,89 +1,66 @@
+import logging
+import os
+
 import click
-from pyteomics import mgf, mzml
-from pyopenms import *
+import pyteomics.mgf
+
+import ms_io
+
+
+logger = logging.getLogger('specpride')
+
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 def print_help():
+    """
+    This method provide a general help for the framework
+    :return:
+    """
     ctx = click.get_current_context()
     click.echo(ctx.get_help())
     ctx.exit()
 
 
-def buid_usi_accession(cluster_id, peptide_sequence, scan, px_accession, raw_name, charge):
-    usi = cluster_id + ";" + 'mzspec' + ":" + px_accession + ":" + raw_name + ":" + "scan:" + str(scan)
-    if peptide_sequence is not None:
-        usi = usi + ":" + peptide_sequence + "/" + str(charge)
-    return usi
-
-
-def read_peptides(mq_msms):
-    peptides = {}
-    with open(mq_msms) as mq_peptides:
-        next(mq_peptides)  # skip header
-        for line in mq_peptides:
-            words = line.split('\t')
-            rscan = int(words[1])
-            rpept = words[7][1:-1]
-            peptides[rscan] = rpept
-    return peptides
-
-
-def read_clusters(mrcluster_clusters):
-    clusters = {}
-    cluster_prefix = 'cluster-'
-    cluster_index = 1
-    with open(mrcluster_clusters) as cluster_def:
-        for line in cluster_def:
-            if not line.strip():
-                cluster_index = cluster_index + 1
-            else:
-                words = line.split('\t')
-                clusters[int(words[1])] = cluster_prefix + str(cluster_index)
-    return clusters
-
-
-@click.command('convert-mq-marcluster', short_help='Command to convert MaxQuant Results and MaCluster into MGF')
-@click.option('--mq_msms', '-p', help='Peptide information from MaxQuant')
-@click.option('--mrcluster_clusters', '-c', help='The information of the clusters from MaRCluster')
-@click.option('--mgf_file', '-s', help='The mgf with the corresponding spectra')
-@click.option('--output', '-o', help='Output mgf containing the cluster and the spectra information')
-@click.option('--px_accession', '-a', help='ProteomeXchange accession of the project')
-@click.option('--raw_name', '-r', help='Original name of the RAW file in proteomeXchange')
-def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_accession, raw_name):
-    if mq_msms is None or mrcluster_clusters is None or mgf_file is None:
+@click.command('mgf_add_cluster',
+               short_help='Add MaRaCluster cluster assignments to MGF')
+@click.option('--filename_mgf', '-s', help='MGF file containing the spectra')
+@click.option('--filename_cluster', '-c',
+              help='File containing MaRaCluster cluster assignments')
+@click.option('--filename_out', '-o',
+              help='Output MGF file name containing the updated spectra')
+@click.option('--px_accession', '-a', help='ProteomeXchange accession of the '
+                                           'project (used to compile USIs)')
+def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
+                    filename_out: str, px_accession: str):
+    if (filename_mgf is None or filename_cluster is None or
+            filename_out is None or px_accession is None):
         print_help()
+        return
 
-    # Read the input spectra
-    input_spectra = mgf.read(mgf_file)
-    spectra_list = list(input_spectra)
-    print('Number of Spectra: ' + str(len(spectra_list)))
+    spectra = {}
+    for spectrum_dict in pyteomics.mgf.read(filename_mgf):
+        spectrum = ms_io._dict_to_spectrum(spectrum_dict)
+        spectrum.identifier = ms_io._build_usi(
+            px_accession, os.path.basename(os.path.splitext(filename_mgf)[0]),
+            spectrum_dict['params']['scans'])
+        spectra[spectrum.identifier] = spectrum
+    logger.info('Read %d spectra from MGF file %s', len(spectra), filename_mgf)
 
-    # Read the msms.txt files using, for now the peptides will be a dictionary, where the key is the scan number
-    # and the values is the peptide sequence. We need to be aware that we can have cases when one scan can be associated with more
-    # than one peptide sequence
+    clusters = ms_io.read_maracluster_clusters(filename_cluster, px_accession)
+    logger.info('Read %d clusters for %d PSMs from cluster file %s',
+                clusters.nunique(), len(clusters), filename_cluster)
 
-    peptides = read_peptides(mq_msms)
-    print('Number of Peptides: ' + str(len(peptides)))
-
-    # Read clusters, the clusters will be a map where the key is the scan and the value is the cluster where the scan belongs
-    clusters = read_clusters(mrcluster_clusters)
-    print("Number of Clusters: " + str(len(clusters)))
-
-    for scan in clusters:
-        print('scan: ' + str(scan))
-        for spectra in spectra_list:
-            if spectra['params']['title'].endswith('scan=' + str(scan)):
-                cluster_accession = clusters[scan]
-                if scan not in peptides:
-                    peptide_sequence = None
-                else:
-                    peptide_sequence = peptides[scan]
-                charge = int(spectra['params']['charge'][0])
-                spectra['params']['title'] = buid_usi_accession(cluster_accession, peptide_sequence, scan, px_accession,
-                                                                raw_name, charge)
-                mgf.write([spectra], output)
+    logging.info('Export the clustered spectra to MGF file %s', filename_out)
+    spectra_dicts = []
+    for usi, cluster_i in clusters.items():
+        if usi in spectra:
+            spectrum = spectra[usi]
+            spectrum.identifier = f'cluster-{cluster_i};{spectrum.identifier}'
+            spectrum_dict = ms_io._spectrum_to_dict(spectrum)
+            spectra_dicts.append(spectrum_dict)
+    ms_io.write_mgf(filename_out, spectra_dicts)
 
 
 @click.command('convert-mq-marcluster-mzml', short_help='Command to convert MaxQuant Results and MaCluster into MGF')
@@ -94,6 +71,8 @@ def convert_mq_mracluster_mgf(mq_msms, mrcluster_clusters, mgf_file, output, px_
 @click.option('--px_accession', '-a', help='ProteomeXchange accession of the project')
 @click.option('--raw_name', '-r', help='Original name of the RAW file in proteomeXchange')
 def convert_mq_mracluster_mzml(mq_msms, mrcluster_clusters, mzml_file, output, px_accession, raw_name):
+    raise NotImplementedError   # TODO
+
     if mq_msms is None or mrcluster_clusters is None or mzml_file is None:
         print_help()
 
@@ -133,19 +112,20 @@ def convert_mq_mracluster_mzml(mq_msms, mrcluster_clusters, mzml_file, output, p
 
     MzMLFile().store(output, new_exp)
 
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
-    """This is the main tool that give access to all commands and options provided by the pypgatk"""
+    pass
 
 
-cli.add_command(convert_mq_mracluster_mgf)
-cli.add_command(convert_mq_mracluster_mzml)
+cli.add_command(mgf_add_cluster)
+# cli.add_command(convert_mq_mracluster_mzml)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    logging.basicConfig(format='{asctime} [{levelname}/{processName}] '
+                               '{module}.{funcName} : {message}',
+                        style='{', level=logging.DEBUG, force=True)
+
     cli()
 
-# <cvParam cvRef="MS" accession="MS:1000511" value="1" name="ms level" />
-# https://www.ebi.ac.uk/ols/ontologies/ms/terms?iri=http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FMS_1000889
-
-# <userParam name="[Thermo Trailer Extra]Monoisotopic M/Z:" type="xsd:float" value="665.8334" />
-# <userParam name="Cluster accession" type="xsd:string" value="cluster-1" />
+    logging.shutdown()
