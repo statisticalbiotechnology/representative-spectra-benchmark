@@ -3,10 +3,24 @@ import numpy as np
 from itertools import groupby
 from pyteomics import mgf, mass
 
+H = mass.nist_mass['H+'][0][0]
+
+# The following constants represent arbitrarily set default values for several parameters
+# Each of these parameters will affect benchmarking and should be carefully chosen.
+# See also the list of optional command-line arguments, as they will affect output.
+
+# Here is an incomplete list of things that can be implemented differently:
+# - how to set the precursor mass for representative spectrum
+# - whether to filter the representative spectrum for low-intensity peaks and how
+#   (e.g. "dynamic range") filter currently implemented
+# - whether to use peak intensities as weights for averaging within MS/MS-level clusters
+# - filter peak clusters based on the number of scans they are representing
+# - spectrum preprocessing (deisotoping / denoising / "demixing")
+#   before clustering AND in subsequent benchmarks
+
 DIFF_THRESH = 0.01
 DYN_RANGE = 1000
 MIN_FRACTION = 0.5
-H = mass.nist_mass['H+'][0][0]
 
 
 def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', **kwargs):
