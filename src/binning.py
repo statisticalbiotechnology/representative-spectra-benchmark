@@ -119,6 +119,50 @@ class RepresentativeSpectrumCreator:
         return(spectra)
 
 
+    def read_spectra_clustered_mgf(self, clustered_mgf_file):
+        """
+        Read clustered MGF file and return clusters object
+        
+        clusters: dict of cluster_id -> peaklists
+        peaklists: list of peaklist dicts
+        peaklist: dict with 'm/z array', 'intensity array', 'cluster_id', 'spectrum_usi'
+        precursor mz and precursor mass        
+        """
+        all_spectra = []
+        with open(clustered_mgf_file, 'rt') as mgf:
+            for line in mgf:
+                if line[:6] == "TITLE=":
+                    # Initiate new spectrum
+                    peaklist = {
+                        "m/z array": [],
+                        "intensity array": [],
+                    }
+                    title = line[6:].strip()
+                    peaklist["cluster_id"] = title.split(';')[0]
+                    peaklist["spectrum_usi"] = title.split(';')[1]
+                if line[:8] == "PEPMASS=":
+                    peaklist["precursor mz"] = float(line[8:].strip())
+                if line[:7] == "CHARGE=":
+                    peaklist["precursor charge"] = int(line[7:].strip().strip("+"))
+                if line[0].isdigit():
+                    peak = line.strip().split(' ')
+                    peaklist["m/z array"].append(float(peak[0]))
+                    peaklist["intensity array"].append(float(peak[1]))
+                if line.strip() == "END IONS":
+                    # Finish up this spectrum
+                    all_spectra.append(peaklist)
+
+        # Group all spectra by cluster_id
+        clusters = {}
+        for peaklist in all_spectra:
+            if peaklist['cluster_id'] not in clusters.keys():
+                clusters[peaklist['cluster_id']] = [peaklist]
+            else:
+                clusters[peaklist['cluster_id']].append(peaklist)
+
+        return clusters
+
+
     def combine_bin_mean(self, peaklists, minimum=100, maximum=2000, binsize=0.02):
 
         array_size = int( (maximum - minimum ) / binsize ) + 1
@@ -191,9 +235,10 @@ def main():
     argparser = argparse.ArgumentParser(description='Creates an index for an MSP spectral library file')
     argparser.add_argument('--verbose', action='count', help='If set, print more information about ongoing processing' )
     argparser.add_argument('--version', action='version', version='%(prog)s 0.5')
-    argparser.add_argument('--mara_file', action='store', help='Name of the mara clusters file')
-    argparser.add_argument('--mzml_file', action='store', help='Name of the mzml file')
-    argparser.add_argument('--cluster', action='store', help='Cluster number to combine')
+    #argparser.add_argument('--mara_file', action='store', help='Name of the mara clusters file')
+    #argparser.add_argument('--mzml_file', action='store', help='Name of the mzml file')
+    #argparser.add_argument('--cluster', action='store', help='Cluster number to combine')
+    argparser.add_argument('--mgf_file', action='store', help='Name of the clustered MGF file')
     argparser.add_argument('--out', action='store', default='merged_spectra.mgf', help='Name of the output mgf file')
     params = argparser.parse_args()
 
@@ -202,24 +247,38 @@ def main():
     if verbose is None: verbose = 1
 
     #### Print and example if not everything is provided
-    if not params.mara_file or not params.mzml_file or not params.cluster:
-        print("Example: representative_spectrum_creator.py --mzml_file ../data/01650b_BA5-TUM_first_pool_75_01_01-3xHCD-1h-R2.mzML --mara_file=../data/MaRaCluster.clusters_p30.tsv --cluster=1")
+    #if not params.mara_file or not params.mzml_file or not params.cluster:
+    #    print("Example: representative_spectrum_creator.py --mzml_file ../data/01650b_BA5-TUM_first_pool_75_01_01-3xHCD-1h-R2.mzML --mara_file=../data/MaRaCluster.clusters_p30.tsv --cluster=1")
+    #    print("Or use --help for additional usage information")
+    #    sys.exit(10)
+
+    if not params.mgf_file:
+        print("Example: representative_spectrum_creator.py --mgf_file=../data/clustered_mgf.mgf")
         print("Or use --help for additional usage information")
         sys.exit(10)
 
     #### Create an Representative Spectrum Creator object
     rsc = RepresentativeSpectrumCreator(verbose=verbose)
 
-    #### Read the cluster file
-    clusters = rsc.read_cluster_list(params.mara_file)
+    #### Read the cluster file from mzML and mara file
+    #clusters = rsc.read_cluster_list(params.mara_file)
+    #peaklists = rsc.read_spectra(params.mzml_file,clusters[int(params.cluster)])
 
-    peaklists = rsc.read_spectra(params.mzml_file,clusters[int(params.cluster)])
+    #### Read the cluster file from clustered MGF
+    print("Reading spectra...")
+    clusters = rsc.read_spectra_clustered_mgf(params.mgf_file)
 
-    rsc_spectrum = rsc.combine_bin_mean(peaklists, minimum=100, maximum=2000, binsize=0.002)
-    print(f"Final spectrum has {len(rsc_spectrum['intensities'])} elements")
-    print(rsc_spectrum)
-
-    rsc_spectra = [rsc_spectrum]
+    print("Clustering...")
+    rsc_spectra = []
+    #i = 0
+    for cluster_id, peaklists in clusters.items():
+        i += 1
+        #print(f"Cluster {cluster_id} contains {len(peaklists)} spectra")
+        rsc_spectrum = rsc.combine_bin_mean(peaklists, minimum=100, maximum=2000, binsize=0.02)
+        #print(f"Final spectrum has {len(rsc_spectrum['intensities'])} elements")
+        rsc_spectra.append(rsc_spectrum)
+        #if i > 20:
+        #    break
 
     with open(params.out, 'wt') as mgf_file:
         rsc.write_spectrum(rsc_spectra, mgf_file)
