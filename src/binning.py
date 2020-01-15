@@ -119,7 +119,7 @@ class RepresentativeSpectrumCreator:
         return(spectra)
 
 
-    def combine_bin_mean(self, peaklists, minimum=100, maximum=2000, binsize=0.02):
+    def combine_bin_mean(self, peaklists, minimum=100, maximum=2000, binsize=0.02, apply_peak_quorum=True):
 
         array_size = int( (maximum - minimum ) / binsize ) + 1
         merged_spectrum = { 'minimum': minimum, 'maximum': maximum, 'binsize': binsize }
@@ -129,6 +129,11 @@ class RepresentativeSpectrumCreator:
         merged_spectrum['precursor_mzs'] = []
         merged_spectrum['precursor_charges'] = []
 
+        #### Determine how many peaks need to be present to keep a final peak
+        peak_quorum = 1
+        if apply_peak_quorum is True:
+            peak_quorum = int(len(peaklists) * 0.25) + 1
+            
         for peaklist in peaklists:
             #### Convert the peak lists to np arrays
             intensity_array = np.asarray(peaklist['intensity array'])
@@ -153,7 +158,7 @@ class RepresentativeSpectrumCreator:
         assert all(x == charges[0] for x in charges), "Not all precursor charges in cluster are equal"
 
         # Take the mean of all peaks per bin
-        merged_spectrum['intensities'][merged_spectrum['intensities'] == 0] = np.nan
+        merged_spectrum['intensities'][merged_spectrum['n_peaks'] < peak_quorum] = np.nan
         merged_spectrum['intensities'] = np.divide(merged_spectrum['intensities'], merged_spectrum['n_peaks'])
 
         # Only return non-zero intensity bins
