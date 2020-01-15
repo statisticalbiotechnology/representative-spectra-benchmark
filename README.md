@@ -12,8 +12,9 @@ The html version of this page can be reached [here](https://statisticalbiotechno
 
 ## Core contributors and Collaborators (Please add your name here):
 
- - [Timo Sachsenberg](sachsenb@informatik.uni-tuebingen.de)
- - [Eric Deutsch](edeutsch@systemsbiology.org)
- - [Yasset Perez-Riverol](yperez@ebi.ac.uk)
- - [Lukas Käll](lukas.kall@scilifelab.se)
+ - [Timo Sachsenberg](sachsenb@informatik.uni-tuebingen.de), Univ. of Tübingen, Germany
+ - [Eric Deutsch](edeutsch@systemsbiology.org), ISB, USA
+ - [Yasset Perez-Riverol](yperez@ebi.ac.uk), EBI, UK
+ - [Lukas Käll](lukas.kall@scilifelab.se), KTH, Sweden
 
+ 
