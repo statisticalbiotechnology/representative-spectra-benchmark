@@ -126,13 +126,15 @@ class RepresentativeSpectrumCreator:
         clusters: dict of cluster_id -> peaklists
         peaklists: list of peaklist dicts
         peaklist: dict with 'm/z array', 'intensity array', 'cluster_id', 'spectrum_usi'
-        precursor mz and precursor mass        
+        precursor mz and precursor mass
         """
         all_spectra = []
         with open(clustered_mgf_file, 'rt') as mgf:
+            #i = 0
             for line in mgf:
                 if line[:6] == "TITLE=":
                     # Initiate new spectrum
+                    #i += 1
                     peaklist = {
                         "m/z array": [],
                         "intensity array": [],
@@ -151,6 +153,8 @@ class RepresentativeSpectrumCreator:
                 if line.strip() == "END IONS":
                     # Finish up this spectrum
                     all_spectra.append(peaklist)
+                    #if i > 100:
+                    #    break
 
         # Group all spectra by cluster_id
         clusters = {}
@@ -230,7 +234,7 @@ class RepresentativeSpectrumCreator:
     def write_spectrum(self, spectra, mgf_file):
         for i, spectrum in enumerate(spectra):
             mgf_tmp = f"""BEGIN IONS
-TITLE={i}
+TITLE={spectrum["cluster_id"]}
 PEPMASS={spectrum['precursor_mz']}
 CHARGE={spectrum['precursor_charge']}+
 """
@@ -285,9 +289,10 @@ def main():
     rsc_spectra = []
     #i = 0
     for cluster_id, peaklists in clusters.items():
-        i += 1
+        #i += 1
         #print(f"Cluster {cluster_id} contains {len(peaklists)} spectra")
         rsc_spectrum = rsc.combine_bin_mean(peaklists, minimum=100, maximum=2000, binsize=0.02)
+        rsc_spectrum['cluster_id'] = cluster_id
         #print(f"Final spectrum has {len(rsc_spectrum['intensities'])} elements")
         rsc_spectra.append(rsc_spectrum)
         #if i > 20:
