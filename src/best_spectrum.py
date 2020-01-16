@@ -1,56 +1,18 @@
-from typing import Dict
+import collections
+from typing import Dict, Iterable
 
+import click
 import pandas as pd
-from pyteomics import mgf
 import spectrum_utils.spectrum as sus
 
+import ms_io
+import logging
 
-def get_cluster_spectra(mgf_filename: str) -> Dict[int, sus.MsmsSpectrum]:
-    """
-    Read all spectra from the given MGF file corresponding to a single cluster.
-
-    Parameters
-    ----------
-    mgf_filename : str
-        The file name of the MGF file to be read.
-
-    Returns
-    -------
-    Dict[int, sus.MsmsSpectrum]
-        A dictionary with as keys the scan numbers and as values the
-        corresponding spectra.
-    """
-    return {
-        int(spectrum_dict['params']['scans']): sus.MsmsSpectrum(
-            spectrum_dict['params']['scans'],
-            spectrum_dict['params']['pepmass'][0],
-            spectrum_dict['params']['charge'][0],
-            spectrum_dict['m/z array'],
-            spectrum_dict['intensity array'],
-            retention_time=spectrum_dict['params']['rtinseconds'])
-        for spectrum_dict in mgf.read(mgf_filename)}
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
-def get_scores(score_filename: str) -> pd.DataFrame:
-    """
-    Read the PSM scores from the given file.
-
-    Parameters
-    ----------
-    score_filename : str
-        The file name of the MaxQuant identifications file (msms.txt).
-
-    Returns
-    -------
-    pd.DataFrame
-        A `DataFrame` with as columns "Raw file", "Scan number", and "Score".
-    """
-    return pd.read_csv(score_filename, sep='\t',
-                       usecols=['Raw file', 'Scan number', 'Score'])
-
-
-def get_best_representative(spectra: Dict[int, sus.MsmsSpectrum],
-                            scores: pd.DataFrame) -> sus.MsmsSpectrum:
+def get_best_representative(spectra: Dict[str, sus.MsmsSpectrum],
+                            scores: pd.Series) -> sus.MsmsSpectrum:
     """
     Get the best representative spectrum with the highest score among the given
     spectra.
@@ -62,12 +24,12 @@ def get_best_representative(spectra: Dict[int, sus.MsmsSpectrum],
 
     Parameters
     ----------
-    spectra : Dict[int, sus.MsmsSpectrum]
-        A dictionary with as keys the scan numbers and as values the
-        corresponding spectra in a cluster.
-    scores : pd.DataFrame
-        A `DataFrame` with the run names in the "Raw file" column, scan number
-         in the "Scan number" column, and PSM scores in the "Score" column.
+    spectra : Dict[str, sus.MsmsSpectrum]
+        A dictionary with as keys the USIs and as values the corresponding
+        spectra in a cluster.
+    scores : pd.Series
+        A `Series` with as index the USI and as values the identification
+        scores.
 
     Returns
     -------
@@ -79,9 +41,89 @@ def get_best_representative(spectra: Dict[int, sus.MsmsSpectrum],
     ValueError
         If none of the given spectra have a score.
     """
-    scores = (scores[scores['Scan number'].isin(spectra.keys())]
-              .sort_values(['Raw file', 'Scan number']))
+    scores = scores[scores.index.isin(spectra.keys())]
     if len(scores) == 0:
         raise ValueError('No scores found for the given scan numbers')
-    best_scan = scores.iloc[scores['Score'].idxmax()]['Scan number']
-    return spectra[best_scan]
+    return spectra[scores.idxmax()]
+
+
+def split_into_clusters(spectra: Dict[str, sus.MsmsSpectrum]) \
+        -> Iterable[Dict[str, sus.MsmsSpectrum]]:
+    """
+    Yield collections of spectra grouped by cluster membership.
+
+    Parameters
+    ----------
+    spectra : Dict[str, sus.MsmsSpectrum]
+        The spectra to be grouped by cluster membership. The `MsmsSpectrum`
+        objects should have a member variable `cluster` to designate which
+        cluster they belong to.
+
+    Returns
+    -------
+    Iterable[Dict[str, sus.MsmsSpectrum]]
+        A dictionary with as keys the USI and as values the spectra for each
+        individual cluster.
+    """
+    clusters = collections.defaultdict(list)
+    for spectrum in spectra.values():
+        clusters[spectrum.cluster].append(spectrum.identifier)
+    for cluster_members in clusters.values():
+        yield {usi: spectra[usi] for usi in cluster_members}
+
+
+@click.command('best_spectrum',
+               short_help='Select cluster representatives with the highest '
+                          'search engine score')
+@click.option('--filename_mgf_in', '-s', required=True,
+              help='MGF file containing the spectra')
+@click.option('--filename_mgf_out', '-o', required=True,
+              help='Output MGF file name containing the cluster '
+                'representatives')
+@click.option('--filename_msms', '-m', required=True,
+              help='File containing MaxQuant identifications (msms.txt)')
+@click.option('--px_accession', '-a',
+              required=True, help='ProteomeXchange accession of the '
+                                           'project (used to compile USIs)')
+def best_spectrum(filename_mgf_in: str, filename_mgf_out: str,
+                  filename_msms: str, px_accession: str) -> None:
+    """
+    Represent clusters by their highest scoring member.
+
+    Parameters
+    ----------
+    filename_mgf_in : str
+        The file name of the MGF input file that contains the original spectra.
+    filename_mgf_out : str
+        The file name of the MGF output file that contains the cluster
+        representatives.
+    filename_msms : str
+        The file name of the MaxQuant identifications file containing PSM
+        scores.
+    px_accession : str
+        ProteomeXchange accession of the project (used to compile USIs).
+    """
+    scores = ms_io.read_maxquant_psms(filename_msms, px_accession)['Score']
+    spectra = ms_io.read_cluster_spectra(filename_mgf_in)
+    representatives = []
+    for cluster in split_into_clusters(spectra):
+        try:
+            representative = get_best_representative(cluster, scores)
+            representative.identifier = (f'{representative.cluster};'
+                                         f'{representative.identifier}')
+            representatives.append(ms_io._spectrum_to_dict(representative))
+        except ValueError:
+            logging.warning(f"Failed to find best spectrum for cluster: {cluster}")
+    ms_io.write_mgf(filename_mgf_out, representatives)
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
+def cli():
+    pass
+
+
+cli.add_command(best_spectrum)
+# cli.add_command(convert_mq_mracluster_mzml)
+
+if __name__ == '__main__':
+        cli()

@@ -1,3 +1,5 @@
+pyopenms
+click
 alabaster
 altair
 altgraph
