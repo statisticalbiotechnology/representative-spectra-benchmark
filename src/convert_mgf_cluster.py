@@ -6,9 +6,7 @@ import pyteomics.mgf
 
 import ms_io
 
-
 logger = logging.getLogger('specpride')
-
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -24,20 +22,23 @@ def print_help():
 
 
 @click.command('mgf_add_cluster',
-               short_help='Add MaRaCluster cluster assignments to MGF')
+               short_help='Add Clustering information, cluster assignments to MGF')
 @click.option('--filename_mgf', '-s', help='MGF file containing the spectra',
-               required=True)
+              required=True)
 @click.option('--filename_cluster', '-c',
-              help='File containing MaRaCluster cluster assignments',
+              help='File containing cluster assignments',
               required=True)
 @click.option('--filename_out', '-o',
               help='Output MGF file name containing the updated spectra',
               required=True)
 @click.option('--px_accession', '-a', help='ProteomeXchange accession of the '
                                            'project (used to compile USIs)',
-                                           required=True)
+              required=True)
+@click.option('--clustering_method', '-m', help='The clustering algorithm',
+              type=click.Choice(['MaRaCluster', 'SpectraCluster'], case_sensitive=False),
+              default='MaRaCluster')
 def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
-                    filename_out: str, px_accession: str):
+                    filename_out: str, px_accession: str, clustering_method):
     if (filename_mgf is None or filename_cluster is None or
             filename_out is None or px_accession is None):
         print_help()
@@ -52,7 +53,11 @@ def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
         spectra[spectrum.identifier] = spectrum
     logger.info('Read %d spectra from MGF file %s', len(spectra), filename_mgf)
 
-    clusters = ms_io.read_maracluster_clusters(filename_cluster, px_accession)
+    if clustering_method is 'MaRaCluster':
+        clusters = ms_io.read_maracluster_clusters(filename_cluster, px_accession)
+    else:
+        clusters = ms_io.read_spectra_clusters(filename_cluster, px_accession)
+
     logger.info('Read %d clusters for %d PSMs from cluster file %s',
                 clusters.nunique(), len(clusters), filename_cluster)
 
@@ -75,7 +80,7 @@ def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
 @click.option('--px_accession', '-a', required=True, help='ProteomeXchange accession of the project')
 @click.option('--raw_name', '-r', required=True, help='Original name of the RAW file in proteomeXchange')
 def convert_mq_mracluster_mzml(mq_msms, mrcluster_clusters, mzml_file, output, px_accession, raw_name):
-    raise NotImplementedError   # TODO
+    raise NotImplementedError  # TODO
 
     if mq_msms is None or mrcluster_clusters is None or mzml_file is None:
         print_help()
@@ -123,12 +128,12 @@ def cli():
 
 
 cli.add_command(mgf_add_cluster)
-# cli.add_command(convert_mq_mracluster_mzml)
+cli.add_command(convert_mq_mracluster_mzml)
 
 if __name__ == '__main__':
     logging.basicConfig(format='{asctime} [{levelname}/{processName}] '
                                '{module}.{funcName} : {message}',
-                        style='{', level=logging.DEBUG, force=True)
+                        style='{', level=logging.DEBUG)
 
     cli()
 

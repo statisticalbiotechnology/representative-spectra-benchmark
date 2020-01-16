@@ -8,7 +8,11 @@ import spectrum_utils.spectrum as sus
 
 import json
 
-def read_cluster_spectra(mgf_filename: str, usi_present: bool=True, cluster_present:bool=True) -> Dict[str, sus.MsmsSpectrum]:
+from spectra_cluster import clustering_parser
+
+
+def read_cluster_spectra(mgf_filename: str, usi_present: bool = True, cluster_present: bool = True) -> Dict[
+    str, sus.MsmsSpectrum]:
     """
     Read all spectra with cluster information from the given MGF file.
 
@@ -43,14 +47,14 @@ def read_cluster_spectra(mgf_filename: str, usi_present: bool=True, cluster_pres
         spectrum = _dict_to_spectrum(spectrum_dict)
         if usi_present and cluster_present:
             title = re.match(r'(cluster-\d+);(mzspec:\w+:.+:(scan|index):\d+)',
-                         spectrum.identifier)
+                             spectrum.identifier)
             spectrum.cluster, spectrum.identifier = title.group(1), title.group(2)
             if spectrum.identifier in spectra:
                 raise ValueError(f'Non-unique USI: {spectrum.identifier}')
             spectra[spectrum.identifier] = spectrum
         elif cluster_present and not usi_present:
             title = re.match(r'(cluster-\d+)',
-                         spectrum.identifier)
+                             spectrum.identifier)
             spectrum.cluster = title.group(1)
             if spectrum.cluster in spectra:
                 raise ValueError(f'Non unique cluster identifier: {spectrum.cluster}')
@@ -121,6 +125,23 @@ def read_maracluster_clusters(maracluster_filename: str, px_accession: str):
                 clusters.append(cluster_i)
         return pd.Series(clusters, usis, name='cluster')
 
+
+def read_spectra_clusters(spectra_cluster_filename: str, px_accession: str):
+    parser = clustering_parser.ClusteringParser(spectra_cluster_filename)
+
+    usis, clusters = [], []
+    cluster_i = 0
+    for cluster in parser:
+        filename = ''
+        index = 1
+        print(cluster)
+        for spectrum in cluster.get_spectra():
+            title = spectrum.title
+            scan = title
+            usis.append(_build_usi(
+                px_accession, filename, scan))
+        clusters.append(cluster.id)
+    return pd.Series(clusters, usis, name='cluster')
 
 def _build_usi(px_accession: str, raw_name: str, scan: int,
                peptide_sequence: str = None, charge: int = None,
