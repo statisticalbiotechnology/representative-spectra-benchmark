@@ -38,6 +38,8 @@ def average_cos_dist(representative_spectrum, cluster_members):
         return 0.0
 
 def fraction_of_by(representative_spectrum, cluster_members=[]):
+    if not representative_spectrum.peptide:
+        return 0.0
     fragment_tol_mass = 0.005
     fragment_tol_mode = 'Da'
     spectrum = (representative_spectrum.remove_precursor_peak(fragment_tol_mass, fragment_tol_mode)
@@ -75,11 +77,9 @@ if __name__ == "__main__":
         break
 
     print (fraction_of_by_seq(peptide_seq, precursor_mz, precursor_charge,mz, intensity))
-    print(spectrum_dict['params']['title'].split(':')[-1])
-    print(peptide_seq)
 
     spec = sus.MsmsSpectrum(
-        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity, peptide=peptide_seq)
+        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity, peptide=None)
 
     print(average_cos_dist(spec, [spec]))
     print (fraction_of_by(spec,[]))
