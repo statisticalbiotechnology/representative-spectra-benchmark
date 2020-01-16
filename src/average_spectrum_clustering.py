@@ -196,11 +196,9 @@ def main():
     pars = argparse.ArgumentParser()
     pars.add_argument('input', help='MGF file with clustered spectra.')
     pars.add_argument('output', nargs='?', help='Output file (default is stdout).')
-    mode = pars.add_mutually_exclusive_group(required=True)
-    mode.add_argument('--single', action='store_true',
-        help='If specified, input is interpreted as containing a single cluster.')
-    mode.add_argument('--encodedclusters', action='store_true',
-        help='Process an MGF with cluster IDs encoded in titles.')
+    pars.add_argument('--mode', choices=['single', 'encoded_clusters'], default='encoded_clusters',
+        help='Operation mode. Single: input MGF is interpreted as a single cluster.'
+        'encoded_clusters: cluster IDs are parsed out of spectrum titles.')
     pars.add_argument('--dyn-range', type=float, default=DYN_RANGE,
         help='Dynamic range to apply to output spectra')
     pars.add_argument('--min-fraction', type=float, default=MIN_FRACTION,
@@ -225,14 +223,14 @@ def main():
     kwargs = {'mz_accuracy': args.mz_accuracy, 'dyn_range': args.dyn_range,
         'min_fraction': args.min_fraction, 'msms_avg': args.msms_avg}
     mode = 'wa'[args.append]
-    if args.single:
+    if args.mode == 'single':
         spectra = list(mgf.read(args.input))
         mz, c = get_pepmass(spectra)
         rt = get_rt(spectra)
         mgf.write([average_spectrum(spectra,
             title=args.output, pepmass=mz, charge=c, rtinseconds=rt, **kwargs)],
             args.output, file_mode=mode)
-    elif args.encodedclusters:
+    elif args.mode == 'encoded_clusters':
         mgf.write(process_maracluster_mgf(args.input,
             get_pepmass=get_pepmass, get_rt=get_rt, **kwargs), args.output, file_mode=mode)
     else:
