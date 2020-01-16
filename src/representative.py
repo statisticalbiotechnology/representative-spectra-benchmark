@@ -33,18 +33,36 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
               help='Output MGF file containing representative spectra for each'
                    ' cluster',
               required=True)
+@click.option('--representative_method', '-r', 'representative_method',
+              help='Method used to select the representative spectrum for each'
+                   ' cluster (options: "most_similar", "best_spectrum")',
+              required=True,
+              type=click.Choice(['most_similar', 'best_spectrum']))
+@click.option('--distance', '-d', 'distance',
+              help='Distance metric to compare spectra to each other (options:'
+                   ' "dot")',
+              type=click.Choice(['dot']))
 @click.option('--psm', '-p', 'filename_psm',
               help='Input PSM file (optional; required for specific '
                    'representative selectors')
 def representative(filename_in: str, filename_out: str,
-                   filename_psm: str = None) -> None:
+                   representative_method: str, distance: str = None,
+                   filename_psm: str = None) \
+        -> None:
     logger.info('Read spectra from spectrum file %s', filename_in)
     spectra = {f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
                for spectrum in ms_io.read_spectra(filename_in)}
 
     # TODO: Other selectors.
-    rs = selector.BestSpectrumRepresentativeSelector(filename_psm)
-    logger.info('Select cluster representatives using the best spectrum')
+    if representative_method == 'most_similar':
+        rs = selector.MostSimilarRepresentativeSelector(distance)
+        logger.info('Select cluster representatives using the most similar '
+                    'spectrum')
+    elif representative_method == 'best_spectrum':
+        rs = selector.BestSpectrumRepresentativeSelector(filename_psm)
+        logger.info('Select cluster representatives using the best spectrum')
+    else:
+        raise ValueError('Unknown method to select the representative spectra')
 
     cluster_representatives = []
     for cluster_key, cluster_spectra in tqdm.tqdm(
