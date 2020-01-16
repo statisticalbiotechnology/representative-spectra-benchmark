@@ -13,7 +13,7 @@ logger = logging.getLogger('cluster_representative')
                help='Export spectra to an MGF file containing cluster '
                     'assignments')
 @click.option('--spectra', '-s', 'filename_spectra',
-              help='Input spectrum file (supported file formats: MGF, mzML, '
+              help='Input spectrum file (supported file formats:    MGF, mzML, '
                    'mzXML)',
               required=True)
 @click.option('--cluster', '-c', 'filename_cluster', nargs=2,
@@ -28,21 +28,18 @@ logger = logging.getLogger('cluster_representative')
 def spectra_add_cluster(filename_spectra: str,
                         filename_cluster: Tuple[str, str],
                         filename_out: str):
-    spectra = {spectrum.identifier: spectrum
+    logger.info('Read spectra from spectrum file %s', filename_spectra)
+    spectra = {f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
                for spectrum in ms_io.read_spectra(filename_spectra)}
-    logger.info('Read %d spectra from spectrum file %s', len(spectra),
-                filename_spectra)
 
+    logger.info('Read clusters from cluster file %s', filename_cluster[0])
     clusters = ms_io.read_clusters(
         filename_cluster[0], filename_cluster[1].lower())
-    logger.info('Read %d clusters from cluster file %s',
-                len(set(clusters.values())), filename_cluster[0])
 
     for spectrum in spectra.values():
-        if spectrum.identifier in clusters:
-            spectrum.cluster = clusters[spectrum.identifier]
-            spectrum.identifier = (f'cluster-{spectrum.cluster};'
-                                   f'{spectrum.identifier}')
+        spectrum_key = f'{spectrum.filename}:scan:{spectrum.scan}'
+        if spectrum_key in clusters:
+            spectrum.cluster = clusters[spectrum_key]
         else:
             logger.warning('No cluster assignment found for spectrum %s',
                            spectrum.identifier)
