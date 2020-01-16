@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Dict, Iterable
 
@@ -6,7 +7,6 @@ import pyteomics.mgf
 import spectrum_utils.spectrum as sus
 import tqdm
 
-import json
 
 def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
     ext = os.path.splitext(filename.lower())[1]
@@ -90,16 +90,6 @@ def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
 
 
 def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
-    """
-    Write the given spectra to an MGF file.
-
-    Parameters
-    ----------
-    filename : str
-        The file name of the MGF output file.
-    spectra : List[Dict]
-        The spectra as Pyteomics dictionaries to be written to the MGF file.
-    """
     def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) \
             -> Iterable[Dict]:
         for spectrum in tqdm.tqdm(spectra, desc='Spectra written',
@@ -121,23 +111,6 @@ def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
 
     with open(filename, 'w') as f_out:
         pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out)
-
-
-def write_distance_dict_to_json(filename: str, distances: Dict) -> None:
-    """
-    Write the given distance dict to a JSON file.
-
-    Parameters
-    ----------
-    filename : str
-        The file name of the JSON output file.
-    distances : Dict
-        A dictionary where the keys are clusters and the values the distances.
-    """
-    # os.makedirs(RESULTFOLDER, exists_ok=True)
-    # path = os.path.join(RESULTFOLDER, filename)
-    with open(filename, 'w') as outfile:
-        json.dump(distances, outfile, indent=4, sort_keys=True)
 
 
 ###############################################################################
@@ -180,3 +153,23 @@ def _read_psms_maxquant(filename: str) -> pd.DataFrame:
             .drop_duplicates('spectra_ref')
             .set_index('spectra_ref')
             .sort_index())
+
+
+###############################################################################
+
+
+def write_distance_dict_to_json(filename: str, distances: Dict) -> None:
+    """
+    Write the given distance dict to a JSON file.
+
+    Parameters
+    ----------
+    filename : str
+        The file name of the JSON output file.
+    distances : Dict
+        A dictionary where the keys are clusters and the values the distances.
+    """
+    # os.makedirs(RESULTFOLDER, exists_ok=True)
+    # path = os.path.join(RESULTFOLDER, filename)
+    with open(filename, 'w') as outfile:
+        json.dump(distances, outfile, indent=4, sort_keys=True)
