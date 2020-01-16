@@ -6,6 +6,7 @@ import pyteomics.mgf
 import spectrum_utils.spectrum as sus
 import tqdm
 
+import json
 
 def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
     ext = os.path.splitext(filename.lower())[1]
@@ -120,6 +121,23 @@ def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
 
     with open(filename, 'w') as f_out:
         pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out)
+
+
+def write_distance_dict_to_json(filename: str, distances: Dict) -> None:
+    """
+    Write the given distance dict to a JSON file.
+
+    Parameters
+    ----------
+    filename : str
+        The file name of the JSON output file.
+    distances : Dict
+        A dictionary where the keys are clusters and the values the distances.
+    """
+    # os.makedirs(RESULTFOLDER, exists_ok=True)
+    # path = os.path.join(RESULTFOLDER, filename)
+    with open(filename, 'w') as outfile:
+        json.dump(distances, outfile, indent=4, sort_keys=True)
 
 
 ###############################################################################

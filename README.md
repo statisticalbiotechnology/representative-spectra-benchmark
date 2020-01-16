@@ -16,8 +16,13 @@ The html version of this page can be reached [here](https://statisticalbiotechno
  - [Michael Turewicz](mailto:michael.turewicz@rub.de), Ruhr-University Bochum, Germany
  - [Ralf Gabriels](mailto:ralf.gabriels@ugent.be), VIB-UGent Center for Medical Biotechnology, Belgium
  - [Timo Sachsenberg](mailto:sachsenb@informatik.uni-tuebingen.de), Univ. of Tübingen, Germany
+ - [Julianus Pfeuffer](mailto:pfeuffer@informatik.uni-tuebingen.de), FU Berlin, Germany
+ - [Eugen Netz](mailto:eugen.netz@tuebingen.mpg.de), MPI for Developmental Biology, Germany
  - [Eric Deutsch](mailto:edeutsch@systemsbiology.org), ISB, USA
  - [Yasset Perez-Riverol](mailto:yperez@ebi.ac.uk), EBI, UK
  - [Lukas Käll](mailto:lukas.kall@scilifelab.se), KTH, Sweden
-
- 
+ - [Julia Bubis](mailto:juliabubis@gmail.com), INEPCP RAS, Russia
+ - [Mark Ivanov](mailto:markmipt@gmail.com), INEPCP RAS, Russia
+ - [Lev Levitsky](mailto:lev.levitsky@phystech.edu), INEPCP RAS, Russia
+ - [Sander Willems](mailto:sander.willems@ugent.be), Laboratory of Pharmaceutical Biotechnology, Ghent University, Belgium
+ - [Henry Webel](mailto:henry.webel@sund.ku.dk), Novo Nordisk Center for Protein Research, Copenhagen University, Denmark

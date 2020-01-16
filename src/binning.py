@@ -8,6 +8,9 @@ import os
 import re
 import sys
 import timeit
+from multiprocessing.pool import ThreadPool
+from multiprocessing import cpu_count
+
 
 # Third party
 import numpy as np
@@ -174,7 +177,8 @@ class RepresentativeSpectrumCreator:
         return clusters
 
     def bin_spectra(
-        self, peaklists, minimum=100, maximum=2000, binsize=0.02, peak_quorum=0.25
+        self, peaklists, minimum=100, maximum=2000, binsize=0.02, peak_quorum=0.25,
+        edge_case_treshold=0.5
     ):
         """
         Combine peaklists into one representative spectrum using binning.
@@ -183,7 +187,7 @@ class RepresentativeSpectrumCreator:
         values of all peaks in a given bin. Bins with less peaks than a given peak
         quorum (percentage of total number of spectra that will be combined) will be
         ignored. Peaks in the representative spectrum that are closer together then
-        half the binsize will get averaged into one peak.
+        the edge case threshold will get averaged into one peak.
 
         Positional arguments:
         peaklists -- list of dictionaries with peak lists that are to be combined
@@ -196,6 +200,9 @@ class RepresentativeSpectrumCreator:
         binsize -- size of each bin in Dalton (default: 0.02)
         peak_quorum -- minimum percentage of peaks to the total number of spectra in the
         cluster for a peak to be included in the representative spectrum (default: 0.25)
+        edge_case_threshold -- fraction of the binsize, adjacent bins with average m/z
+        values closer than the threshold will be merged into one bin. Set to 0 to
+        disable this function (default: 0.5)
         """
 
         array_size = int((maximum - minimum) / binsize) + 1
@@ -255,7 +262,7 @@ class RepresentativeSpectrumCreator:
         mz_deltas[np.isnan(mz_deltas)] = 0
 
         # Find cases where the deltas are smaller than half the bin size
-        small_mz_deltas = mz_deltas[(mz_deltas > 0) & (mz_deltas < binsize / 2)]
+        small_mz_deltas = mz_deltas[(mz_deltas > 0) & (mz_deltas < binsize * edge_case_treshold)]
         # if 0:
         if len(small_mz_deltas) > 0:
             # Get a list of indexes of the split bin cases
@@ -263,15 +270,6 @@ class RepresentativeSpectrumCreator:
             small_mz_deltas_mask[mz_deltas == 0] = -1
             small_mz_deltas_mask[mz_deltas >= binsize / 2] = -1
             small_mz_deltas_index = delta_index[small_mz_deltas_mask > -1]
-
-            # print(small_mz_deltas_index.tolist())
-            # print(small_mz_deltas.tolist())
-            # print(merged_mzs[small_mz_deltas_index].tolist())
-            # print(merged_mzs[small_mz_deltas_index+1].tolist())
-            # print(merged_spectrum['intensities'][small_mz_deltas_index].tolist())
-            # print(merged_spectrum['intensities'][small_mz_deltas_index+1].tolist())
-            # print(merged_spectrum['n_peaks'][small_mz_deltas_index].tolist())
-            # print(merged_spectrum['n_peaks'][small_mz_deltas_index+1].tolist())
 
             # Consolidate all the split mzs, n_peaks, intensities into one bin
             merged_spectrum["mzs"][small_mz_deltas_index] += merged_spectrum["mzs"][
@@ -307,20 +305,6 @@ class RepresentativeSpectrumCreator:
         merged_spectrum["mzs"] = merged_spectrum["mzs"][nan_mask]
         merged_spectrum["n_peaks"] = merged_spectrum["n_peaks"][nan_mask]
 
-        """
-        # Look again at too-close peaks
-        delta_index = np.arange(0,len(merged_spectrum['mzs']),1) - 1
-        delta_index[0] = 0
-        mz_deltas = merged_spectrum['mzs'] - merged_spectrum['mzs'][delta_index]
-        small_mz_deltas = mz_deltas[ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
-        print(small_mz_deltas.tolist())
-        small_mz_deltas_mzs = merged_spectrum['mzs'][ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
-        print(small_mz_deltas_mzs.tolist())
-        small_mz_deltas_n_peaks = merged_spectrum['n_peaks'][ ( mz_deltas > 0 ) & ( mz_deltas < binsize/2 ) ]
-        print(small_mz_deltas_n_peaks.tolist())
-        sys.exit(3)
-        """
-
         merged_spectrum["precursor_mz"] = np.mean(merged_spectrum["precursor_mzs"])
         merged_spectrum["precursor_charge"] = charges[0]
 
@@ -329,6 +313,19 @@ class RepresentativeSpectrumCreator:
         del merged_spectrum["precursor_mzs"]
 
         return merged_spectrum
+
+
+    def bin_spectra_wrapper(self,cluster):
+        cluster_id = cluster['cluster_id']
+        peaklists = cluster['peaklists']
+
+        rsc_spectrum = self.bin_spectra(
+            peaklists, minimum=100, maximum=2000, binsize=0.02,
+            peak_quorum=0.25, edge_case_treshold=0
+        )
+        rsc_spectrum["cluster_id"] = cluster_id
+        return(rsc_spectrum)
+
 
     def write_spectrum(self, spectra, mgf_file):
         """Write spectrum to MGF file."""
@@ -384,7 +381,7 @@ def main():
 
     if not params.mgf_file:
         print(
-            "Example: representative_spectrum_creator.py --mgf_file=../data/clustered_mgf.mgf"
+            "Example: binning.py --mgf_file=../data/clustered_maracluster.mgf"
         )
         print("Or use --help for additional usage information")
         sys.exit(10)
@@ -398,20 +395,44 @@ def main():
 
     # Read the cluster file from clustered MGF
     print("Reading spectra...")
+    t0 = timeit.default_timer()
     clusters = rsc.read_spectra_clustered_mgf(params.mgf_file)
+    t1 = timeit.default_timer()
+    print(f"INFO: Read {len(clusters)} clusters in {t1-t0} seconds ({len(clusters)/(t1-t0)} clusters per second)")
 
-    print("Clustering...")
+    print(f"Create representative spectra for {len(clusters)} clusters via enhanced binning method...")
     rsc_spectra = []
-    for cluster_id, peaklists in clusters.items():
-        rsc_spectrum = rsc.bin_spectra(
-            peaklists, minimum=100, maximum=2000, binsize=0.02
-        )
-        rsc_spectrum["cluster_id"] = cluster_id
-        rsc_spectra.append(rsc_spectrum)
+
+    n_threads = cpu_count()
+
+    if n_threads == 1:
+        for cluster_id, peaklists in clusters.items():
+            rsc_spectrum = rsc.bin_spectra(
+                peaklists, minimum=100, maximum=2000, binsize=0.02
+            )
+            rsc_spectrum["cluster_id"] = cluster_id
+            rsc_spectra.append(rsc_spectrum)
+    else:
+        #### Reformat for parallelism
+        cluster_list = []
+        for cluster_id, peaklists in clusters.items():
+            cluster_list.append({'cluster_id': cluster_id, 'peaklists': peaklists})
+
+        #### Process clusters in parallel. Note will be out of order
+        pool = ThreadPool(n_threads)
+        rsc_spectra = pool.imap_unordered(rsc.bin_spectra_wrapper, cluster_list)
+        pool.close()
+        pool.join()
+
+    t2 = timeit.default_timer()
+    print(f"INFO: Processed {len(clusters)} clusters in {t2-t1} seconds ({len(clusters)/(t2-t1)} clusters per second)")
 
     # Write representative spectra to new MGF file
+    print("Writing result MGF")
     with open(params.out, "wt") as mgf_file:
         rsc.write_spectrum(rsc_spectra, mgf_file)
+    t3 = timeit.default_timer()
+    print(f"INFO: Wrote {len(clusters)} representative spectra in {t3-t2} seconds ({len(clusters)/(t3-t2)} spectra per second)")
 
 
 if __name__ == "__main__":
