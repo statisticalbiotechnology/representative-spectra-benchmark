@@ -42,6 +42,8 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
         Method for calculation of MS/MS peak m/z values in representative spectrum.
         Naive: simple average of peak m/z within MS/MS-level cluster.
         Weighted: weighted average with MS/MS peak intensities as weights.
+    min_fraction, float, keyword only, optional
+        Minimum fraction of cluster spectra need to contain the peak.
 
     Returns
     -------
@@ -51,6 +53,7 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
     dyn_range = kwargs.get('dyn_range', DYN_RANGE)
     min_fraction = kwargs.get('min_fraction', MIN_FRACTION)
     msms_avg = kwargs.get('msms_avg')
+
     mz_arrays, int_arrays = [], []
     n = 0 # number of spectra
     for s in spectra:
