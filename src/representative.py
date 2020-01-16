@@ -35,9 +35,9 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
               required=True)
 @click.option('--representative_method', '-r', 'representative_method',
               help='Method used to select the representative spectrum for each'
-                   ' cluster (options: "most_similar", "best_spectrum")',
+                   ' cluster (options: "most_similar", "best_spectrum", "bin")',
               required=True,
-              type=click.Choice(['most_similar', 'best_spectrum']))
+              type=click.Choice(['most_similar', 'best_spectrum', 'bin']))
 @click.option('--distance', '-d', 'distance',
               help='Distance metric to compare spectra to each other (options:'
                    ' "dot")',
@@ -61,6 +61,10 @@ def representative(filename_in: str, filename_out: str,
     elif representative_method == 'best_spectrum':
         rs = selector.BestSpectrumRepresentativeSelector(filename_psm)
         logger.info('Select cluster representatives using the best spectrum')
+    elif representative_method == 'bin':
+        # TODO: Customization options.
+        rs = selector.BinningRepresentativeSelector()
+        logger.info('Select cluster representatives via binning')
     else:
         raise ValueError('Unknown method to select the representative spectra')
 
@@ -86,7 +90,7 @@ def representative(filename_in: str, filename_out: str,
 if __name__ == '__main__':
     logging.basicConfig(format='{asctime} [{levelname}/{processName}] '
                                '{module}.{funcName} : {message}',
-                        style='{', level=logging.DEBUG)
+                        style='{', level=logging.INFO)
 
     representative()
 
