@@ -6,8 +6,9 @@ import pandas as pd
 import pyteomics.mgf
 import spectrum_utils.spectrum as sus
 
+import json
 
-def read_cluster_spectra(mgf_filename: str) -> Dict[str, sus.MsmsSpectrum]:
+def read_cluster_spectra(mgf_filename: str, usi_present: bool=True, cluster_present:bool=True) -> Dict[str, sus.MsmsSpectrum]:
     """
     Read all spectra with cluster information from the given MGF file.
 
@@ -15,22 +16,47 @@ def read_cluster_spectra(mgf_filename: str) -> Dict[str, sus.MsmsSpectrum]:
     ----------
     mgf_filename : str
         The file name of the MGF file to be read.
+    usi_present: bool
+        Do the titles of the mgf contain a USI
+    cluster_present: bool
+        Do the titles of the mgf contain a cluster ID
+
+    Raises
+    -------
+    ValueError:
+        In case of duplicate Identifiers (being USI or Cluster IDs) a
+        ValueError is raised
+    NotImplementedError:
+        In case only USIs are present, the functionality is yet undefined.
+
 
     Returns
     -------
     Dict[str, sus.MsmsSpectrum]
-        A dictionary with as keys the USI (without optional peptide
-        identification) and as values the corresponding spectra.
+        A dictionary with keys the USI (without optional peptide
+        identification) and as values the corresponding spectra
+        or a dictionary with clusters as keys in case no USI is
+        given in `mgf_filename`.
     """
     spectra = {}
     for spectrum_dict in pyteomics.mgf.read(mgf_filename):
         spectrum = _dict_to_spectrum(spectrum_dict)
-        title = re.match(r'(cluster-\d+);(mzspec:\w+:.+:(scan|index):\d+)',
+        if usi_present and cluster_present:
+            title = re.match(r'(cluster-\d+);(mzspec:\w+:.+:(scan|index):\d+)',
                          spectrum.identifier)
-        spectrum.cluster, spectrum.identifier = title.group(1), title.group(2)
-        if spectrum.identifier in spectra:
-            raise ValueError(f'Non-unique USI: {spectrum.identifier}')
-        spectra[spectrum.identifier] = spectrum
+            spectrum.cluster, spectrum.identifier = title.group(1), title.group(2)
+            if spectrum.identifier in spectra:
+                raise ValueError(f'Non-unique USI: {spectrum.identifier}')
+            spectra[spectrum.identifier] = spectrum
+        elif cluster_present and not usi_present:
+            title = re.match(r'(cluster-\d+)',
+                         spectrum.identifier)
+            spectrum.cluster = title.group(1)
+            if spectrum.cluster in spectra:
+                raise ValueError(f'Non unique cluster identifier: {spectrum.cluster}')
+            spectra[spectrum.cluster] = spectrum
+        else:
+            raise NotImplementedError("Missing functionality for now.")
     return spectra
 
 
@@ -120,3 +146,20 @@ def write_mgf(filename: str, spectra: Iterable[Dict]) -> None:
     """
     with open(filename, 'w') as f_out:
         pyteomics.mgf.write(spectra, f_out)
+
+
+def write_distance_dict_to_json(filename: str, distances: Dict) -> None:
+    """
+    Write the given distance dict to a JSON file.
+
+    Parameters
+    ----------
+    filename : str
+        The file name of the JSON output file.
+    distances : Dict
+        A dictionary where the keys are clusters and the values the distances.
+    """
+    # os.makedirs(RESULTFOLDER, exists_ok=True)
+    # path = os.path.join(RESULTFOLDER, filename)
+    with open(filename, 'w') as outfile:
+        json.dump(distances, outfile, indent=4, sort_keys=True)
