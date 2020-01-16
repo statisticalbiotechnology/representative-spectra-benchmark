@@ -22,3 +22,5 @@ The html version of this page can be reached [here](https://statisticalbiotechno
  - [Julia Bubis](mailto:juliabubis@gmail.com), INEPCP RAS, Russia
  - [Mark Ivanov](mailto:markmipt@gmail.com), INEPCP RAS, Russia
  - [Lev Levitsky](mailto:lev.levitsky@phystech.edu), INEPCP RAS, Russia
+ - [Sander Willems](mailto:sander.willems@ugent.be), Laboratory of Pharmaceutical Biotechnology, Ghent University, Belgium
+ - [Henry Webel](mailto:henry.webel@sund.ku.dk), Novo Nordisk Center for Protein Research, Copenhagen University, Denmark
