@@ -50,10 +50,10 @@ def read_cluster_spectra(mgf_filename: str, usi_present: bool=True, cluster_pres
         elif cluster_present and not usi_present:
             title = re.match(r'(cluster-\d+)',
                          spectrum.identifier)
-            spectrum.cluster = title.group(1)    
-            spectra[spectrum.cluster] = spectrum 
+            spectrum.cluster = title.group(1)             
             if spectrum.cluster in spectra:
                 raise ValueError(f'Non unique cluster identifier: {spectrum.cluster}')
+            spectra[spectrum.cluster] = spectrum 
         else:
             raise NotImplementedError("Missing functionality for now.")
     return spectra
