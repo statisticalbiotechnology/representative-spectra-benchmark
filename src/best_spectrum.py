@@ -75,14 +75,15 @@ def split_into_clusters(spectra: Dict[str, sus.MsmsSpectrum]) \
 @click.command('best_spectrum',
                short_help='Select cluster representatives with the highest '
                           'search engine score')
-@click.option('--filename_mgf_in', '-s',
+@click.option('--filename_mgf_in', '-s', required=True,
               help='MGF file containing the spectra')
-@click.option('--filename_mgf_out', '-o',
+@click.option('--filename_mgf_out', '-o', required=True,
               help='Output MGF file name containing the cluster '
-                   'representatives')
-@click.option('--filename_msms', '-m',
+                'representatives')
+@click.option('--filename_msms', '-m', required=True,
               help='File containing MaxQuant identifications (msms.txt)')
-@click.option('--px_accession', '-a', help='ProteomeXchange accession of the '
+@click.option('--px_accession', '-a',
+              required=True, help='ProteomeXchange accession of the '
                                            'project (used to compile USIs)')
 def best_spectrum(filename_mgf_in: str, filename_mgf_out: str,
                   filename_msms: str, px_accession: str) -> None:
