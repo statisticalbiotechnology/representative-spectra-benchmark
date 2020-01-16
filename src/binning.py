@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import timeit
+from multiprocessing.pool import ThreadPool
 
 # Third party
 import numpy as np
@@ -330,6 +331,16 @@ class RepresentativeSpectrumCreator:
 
         return merged_spectrum
 
+    def bin_spectra_wrapper(self,cluster):
+        cluster_id = cluster['cluster_id']
+        peaklists = cluster['peaklists']
+
+        rsc_spectrum = self.bin_spectra(peaklists, minimum=100, maximum=2000, binsize=0.02)
+        #print(".",end='')
+        rsc_spectrum["cluster_id"] = cluster_id
+        return(rsc_spectrum)
+
+
     def write_spectrum(self, spectra, mgf_file):
         """Write spectrum to MGF file."""
         for i, spectrum in enumerate(spectra):
@@ -384,7 +395,7 @@ def main():
 
     if not params.mgf_file:
         print(
-            "Example: representative_spectrum_creator.py --mgf_file=../data/clustered_mgf.mgf"
+            "Example: binning.py --mgf_file=../data/clustered_maracluster.mgf"
         )
         print("Or use --help for additional usage information")
         sys.exit(10)
@@ -398,20 +409,44 @@ def main():
 
     # Read the cluster file from clustered MGF
     print("Reading spectra...")
+    t0 = timeit.default_timer()
     clusters = rsc.read_spectra_clustered_mgf(params.mgf_file)
+    t1 = timeit.default_timer()
+    print(f"INFO: Read {len(clusters)} clusters in {t1-t0} seconds ({len(clusters)/(t1-t0)} clusters per second)")
 
-    print("Clustering...")
+    print(f"Create representative spectra for {len(clusters)} clusters via enhanced binning method...")
     rsc_spectra = []
-    for cluster_id, peaklists in clusters.items():
-        rsc_spectrum = rsc.bin_spectra(
-            peaklists, minimum=100, maximum=2000, binsize=0.02
-        )
-        rsc_spectrum["cluster_id"] = cluster_id
-        rsc_spectra.append(rsc_spectrum)
+
+    n_threads = 4
+
+    if n_threads == 1:
+        for cluster_id, peaklists in clusters.items():
+            rsc_spectrum = rsc.bin_spectra(
+                peaklists, minimum=100, maximum=2000, binsize=0.02
+            )
+            rsc_spectrum["cluster_id"] = cluster_id
+            rsc_spectra.append(rsc_spectrum)
+    else:
+        #### Reformat for parallelism
+        cluster_list = []
+        for cluster_id, peaklists in clusters.items():
+            cluster_list.append({'cluster_id': cluster_id, 'peaklists': peaklists})
+
+        #### Process clusters in parallel. Note will be out of order
+        pool = ThreadPool(n_threads)
+        rsc_spectra = pool.imap_unordered(rsc.bin_spectra_wrapper, cluster_list)
+        pool.close()
+        pool.join()
+
+    t2 = timeit.default_timer()
+    print(f"INFO: Processed {len(clusters)} clusters in {t2-t1} seconds ({len(clusters)/(t2-t1)} clusters per second)")
 
     # Write representative spectra to new MGF file
+    print("Writing result MGF")
     with open(params.out, "wt") as mgf_file:
         rsc.write_spectrum(rsc_spectra, mgf_file)
+    t3 = timeit.default_timer()
+    print(f"INFO: Wrote {len(clusters)} representative spectra in {t3-t2} seconds ({len(clusters)/(t3-t2)} spectra per second)")
 
 
 if __name__ == "__main__":
