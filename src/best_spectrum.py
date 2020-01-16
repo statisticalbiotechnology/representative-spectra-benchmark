@@ -6,6 +6,9 @@ import pandas as pd
 import spectrum_utils.spectrum as sus
 
 import ms_io
+import logging
+
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 def get_best_representative(spectra: Dict[str, sus.MsmsSpectrum],
@@ -72,14 +75,15 @@ def split_into_clusters(spectra: Dict[str, sus.MsmsSpectrum]) \
 @click.command('best_spectrum',
                short_help='Select cluster representatives with the highest '
                           'search engine score')
-@click.option('--filename_mgf_in', '-s',
+@click.option('--filename_mgf_in', '-s', required=True,
               help='MGF file containing the spectra')
-@click.option('--filename_mgf_out', '-o',
+@click.option('--filename_mgf_out', '-o', required=True,
               help='Output MGF file name containing the cluster '
-                   'representatives')
-@click.option('--filename_msms', '-m',
+                'representatives')
+@click.option('--filename_msms', '-m', required=True,
               help='File containing MaxQuant identifications (msms.txt)')
-@click.option('--px_accession', '-a', help='ProteomeXchange accession of the '
+@click.option('--px_accession', '-a',
+              required=True, help='ProteomeXchange accession of the '
                                            'project (used to compile USIs)')
 def best_spectrum(filename_mgf_in: str, filename_mgf_out: str,
                   filename_msms: str, px_accession: str) -> None:
@@ -109,5 +113,17 @@ def best_spectrum(filename_mgf_in: str, filename_mgf_out: str,
                                          f'{representative.identifier}')
             representatives.append(ms_io._spectrum_to_dict(representative))
         except ValueError:
-            pass
+            logging.warning(f"Failed to find best spectrum for cluster: {cluster}")
     ms_io.write_mgf(filename_mgf_out, representatives)
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
+def cli():
+    pass
+
+
+cli.add_command(best_spectrum)
+# cli.add_command(convert_mq_mracluster_mzml)
+
+if __name__ == '__main__':
+        cli()
