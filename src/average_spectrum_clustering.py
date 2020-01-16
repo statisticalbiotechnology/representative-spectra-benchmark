@@ -38,6 +38,12 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
     dyn_range : float, keyword only, optional
         Dynamic range to apply to output (peaks less than max_intensity / dyn_range
         are discarded)
+    msms_avg : {'naive', 'weighted'}
+        Method for calculation of MS/MS peak m/z values in representative spectrum.
+        Naive: simple average of peak m/z within MS/MS-level cluster.
+        Weighted: weighted average with MS/MS peak intensities as weights.
+    min_fraction, float, keyword only, optional
+        Minimum fraction of cluster spectra need to contain the peak.
 
     Returns
     -------
@@ -46,6 +52,8 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
     mz_accuracy = kwargs.get('mz_accuracy', DIFF_THRESH)
     dyn_range = kwargs.get('dyn_range', DYN_RANGE)
     min_fraction = kwargs.get('min_fraction', MIN_FRACTION)
+    msms_avg = kwargs.get('msms_avg')
+
     mz_arrays, int_arrays = [], []
     n = 0 # number of spectra
     for s in spectra:
@@ -70,21 +78,40 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
 
         mz_array_sum = np.cumsum(mz_array_all)
         intensity_array_sum = np.cumsum(intensity_array_all)
+        if msms_avg == 'weighted':
+            mult_mz_intensity_array_sum = np.cumsum(mz_array_all*intensity_array_all)
 
         min_l = min_fraction * n
         if i_prev >= min_l:
-            new_mz_array.append(mz_array_sum[i_prev-1]/(i_prev))
-            new_intensity_array.append(intensity_array_sum[i_prev-1]/n)
+            I_sum = intensity_array_sum[i_prev-1]
+            if msms_avg == 'naive':
+                new_mz_array.append(mz_array_sum[i_prev-1] / i_prev)
+            elif msms_avg == 'weighted':
+                mzI_sum = mult_mz_intensity_array_sum[i_prev-1]
+                new_mz_array.append(mzI_sum / I_sum)
+            new_intensity_array.append(I_sum / n)
 
         for i in ind_list[1:-1]:
             if i - i_prev >= min_l:
-                new_mz_array.append((mz_array_sum[i-1]-mz_array_sum[i_prev-1])/(i-i_prev))
-                new_intensity_array.append((intensity_array_sum[i-1]-intensity_array_sum[i_prev-1])/n)
+                I_sum = intensity_array_sum[i-1] - intensity_array_sum[i_prev-1]
+                if msms_avg == 'naive':
+                    mz_sum = mz_array_sum[i-1] - mz_array_sum[i_prev-1]
+                    new_mz_array.append(mz_sum / (i-i_prev))
+                elif msms_avg == 'weighted':
+                    mzI_sum = mult_mz_intensity_array_sum[i-1] - mult_mz_intensity_array_sum[i_prev-1]
+                    new_mz_array.append(mzI_sum / I_sum)
+                new_intensity_array.append(I_sum / n)
             i_prev = i
 
         if (len(mz_array_sum) - i_prev) >= min_l:
-            new_mz_array.append((mz_array_sum[-1] - mz_array_sum[i_prev-1])/(len(mz_array_sum) - i_prev))
-            new_intensity_array.append((intensity_array_sum[-1] - intensity_array_sum[i_prev-1])/n)
+            I_sum = intensity_array_sum[-1] - intensity_array_sum[i_prev-1]
+            if msms_avg == 'naive':
+                mz_sum = mz_array_sum[-1] - mz_array_sum[i_prev-1]
+                new_mz_array.append(mz_sum / (len(mz_array_sum) - i_prev))
+            elif msms_avg == 'weighted':
+                mzI_sum = mult_mz_intensity_array_sum[-1] - mult_mz_intensity_array_sum[i_prev-1]
+                new_mz_array.append(mzI_sum / I_sum)
+            new_intensity_array.append(I_sum / n)
     else:
         new_mz_array = mz_arrays[0]
         new_intensity_array = int_arrays[0]
@@ -92,7 +119,7 @@ def average_spectrum(spectra, title='', pepmass='', rtinseconds='', charge='', *
     new_mz_array = np.array(new_mz_array)
     new_intensity_array = np.array(new_intensity_array)
 
-    min_i = new_intensity_array.max()/dyn_range
+    min_i = new_intensity_array.max() / dyn_range
     idx = new_intensity_array >= min_i
     new_intensity_array = new_intensity_array[idx]
     new_mz_array = new_mz_array[idx]
@@ -169,11 +196,9 @@ def main():
     pars = argparse.ArgumentParser()
     pars.add_argument('input', help='MGF file with clustered spectra.')
     pars.add_argument('output', nargs='?', help='Output file (default is stdout).')
-    mode = pars.add_mutually_exclusive_group(required=True)
-    mode.add_argument('--single', action='store_true',
-        help='If specified, input is interpreted as containing a single cluster.')
-    mode.add_argument('--encodedclusters', action='store_true',
-        help='Process an MGF with cluster IDs encoded in titles.')
+    pars.add_argument('--mode', choices=['single', 'encoded_clusters'], default='encoded_clusters',
+        help='Operation mode. Single: input MGF is interpreted as a single cluster.'
+        'encoded_clusters: cluster IDs are parsed out of spectrum titles.')
     pars.add_argument('--dyn-range', type=float, default=DYN_RANGE,
         help='Dynamic range to apply to output spectra')
     pars.add_argument('--min-fraction', type=float, default=MIN_FRACTION,
@@ -185,6 +210,7 @@ def main():
     pars.add_argument('--rt', choices=['median', 'mass_lower_median'], default='median')
     pars.add_argument('--pepmass', choices=['naive_average', 'neutral_average',
         'lower_median'], default='lower_median')
+    pars.add_argument('--msms_avg', choices=['naive', 'weighted'], default='weighted')
 
     args = pars.parse_args()
     if args.pepmass == 'lower_median':
@@ -194,16 +220,17 @@ def main():
         'neutral_average': neutral_average_mass_and_charge,
         'lower_median': lower_median_mass}[args.pepmass]
 
-    kwargs = {'mz_accuracy': args.mz_accuracy, 'dyn_range': args.dyn_range, 'min_fraction': args.min_fraction}
+    kwargs = {'mz_accuracy': args.mz_accuracy, 'dyn_range': args.dyn_range,
+        'min_fraction': args.min_fraction, 'msms_avg': args.msms_avg}
     mode = 'wa'[args.append]
-    if args.single:
+    if args.mode == 'single':
         spectra = list(mgf.read(args.input))
         mz, c = get_pepmass(spectra)
         rt = get_rt(spectra)
         mgf.write([average_spectrum(spectra,
             title=args.output, pepmass=mz, charge=c, rtinseconds=rt, **kwargs)],
             args.output, file_mode=mode)
-    elif args.encodedclusters:
+    elif args.mode == 'encoded_clusters':
         mgf.write(process_maracluster_mgf(args.input,
             get_pepmass=get_pepmass, get_rt=get_rt, **kwargs), args.output, file_mode=mode)
     else:
