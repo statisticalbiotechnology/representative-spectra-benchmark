@@ -1,56 +1,113 @@
 import os
-import re
 from typing import Dict, Iterable
 
 import pandas as pd
 import pyteomics.mgf
 import spectrum_utils.spectrum as sus
+import tqdm
 
 
-def read_cluster_spectra(mgf_filename: str) -> Dict[str, sus.MsmsSpectrum]:
+def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    ext = os.path.splitext(filename.lower())[1]
+    if ext == '.mgf':
+        yield from _read_spectra_mgf(filename)
+    elif ext == '.mzml':
+        yield from _read_spectra_mzml(filename)
+    elif ext == '.mzxml':
+        yield from _read_spectra_mzxml(filename)
+    else:
+        raise ValueError('Unsupported peak file format (supported formats: '
+                         'MGF, mzML, mzXML)')
+
+
+def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    for spectrum_dict in tqdm.tqdm(pyteomics.mgf.read(filename),
+                                   desc='Spectra read', unit='spectra'):
+        yield sus.MsmsSpectrum(
+            spectrum_dict['params']['title'],
+            spectrum_dict['params']['pepmass'][0],
+            spectrum_dict['params']['charge'][0],
+            spectrum_dict['m/z array'],
+            spectrum_dict['intensity array'],
+            None,
+            spectrum_dict['params']['rtinseconds'])
+
+
+def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    raise NotImplementedError
+
+
+def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    raise NotImplementedError
+
+
+###############################################################################
+
+
+def read_clusters(filename: str, fmt: str) -> Dict[str, int]:
+    if fmt == 'maracluster':
+        return _read_clusters_maracluster(filename)
+    elif fmt == 'pride-cluster':
+        return _read_clusters_pridecluster(filename)
+    elif fmt == 'ms-cluster':
+        return _read_clusters_mscluster(filename)
+    else:
+        raise ValueError('Unsupported cluster file format (supported formats: '
+                         'MaRaCluster, pride-cluster, MS-Cluster)')
+
+
+def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
+    with open(filename) as f_in:
+        clusters = {}
+        cluster_i = 0
+        for line in f_in:
+            if not line.strip():
+                cluster_i += 1
+            else:
+                filename, scan, *_ = line.split('\t')
+                clusters[f'{os.path.splitext(filename)[0]}:scan:{scan}'] = \
+                    cluster_i
+        return clusters
+
+
+def _read_clusters_pridecluster(filename: str) -> Dict[str, int]:
+    raise NotImplementedError
+
+
+def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
+    raise NotImplementedError
+
+
+###############################################################################
+
+
+def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
     """
-    Read all spectra with cluster information from the given MGF file.
+    Write the given spectra to an MGF file.
 
     Parameters
     ----------
-    mgf_filename : str
-        The file name of the MGF file to be read.
-
-    Returns
-    -------
-    Dict[str, sus.MsmsSpectrum]
-        A dictionary with as keys the USI (without optional peptide
-        identification) and as values the corresponding spectra.
+    filename : str
+        The file name of the MGF output file.
+    spectra : List[Dict]
+        The spectra as Pyteomics dictionaries to be written to the MGF file.
     """
-    spectra = {}
-    for spectrum_dict in pyteomics.mgf.read(mgf_filename):
-        spectrum = _dict_to_spectrum(spectrum_dict)
-        title = re.match(r'(cluster-\d+);(mzspec:\w+:.+:(scan|index):\d+)',
-                         spectrum.identifier)
-        spectrum.cluster, spectrum.identifier = title.group(1), title.group(2)
-        if spectrum.identifier in spectra:
-            raise ValueError(f'Non-unique USI: {spectrum.identifier}')
-        spectra[spectrum.identifier] = spectrum
-    return spectra
+    def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) \
+            -> Iterable[Dict]:
+        for spectrum in tqdm.tqdm(spectra, desc='Spectra written',
+                                  unit='spectra'):
+            yield {'params': {'title': spectrum.identifier,
+                              'pepmass': spectrum.precursor_mz,
+                              'rtinseconds': spectrum.retention_time,
+                              'charge': spectrum.precursor_charge},
+                   'm/z array': spectrum.mz,
+                   'intensity array': spectrum.intensity}
+
+    with open(filename, 'w') as f_out:
+        pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out)
 
 
-def _dict_to_spectrum(spectrum_dict: Dict):
-    return sus.MsmsSpectrum(
-        spectrum_dict['params']['title'],
-        spectrum_dict['params']['pepmass'][0],
-        spectrum_dict['params']['charge'][0],
-        spectrum_dict['m/z array'],
-        spectrum_dict['intensity array'],
-        retention_time=spectrum_dict['params']['rtinseconds'])
-
-
-def _spectrum_to_dict(spectrum: sus.MsmsSpectrum):
-    return {'m/z array': spectrum.mz,
-            'intensity array': spectrum.intensity,
-            'params': {'title': spectrum.identifier,
-                       'pepmass': spectrum.precursor_mz,
-                       'rtinseconds': spectrum.retention_time,
-                       'charge': spectrum.precursor_charge}}
+###############################################################################
 
 
 def read_maxquant_psms(msms_filename: str, px_accession: str) -> pd.Series:
@@ -79,44 +136,3 @@ def read_maxquant_psms(msms_filename: str, px_accession: str) -> pd.Series:
                      ':scan:' + scores['Scan number'].astype(str))
     scores = scores[['usi', 'Sequence', 'Score']].set_index('usi')
     return scores.sort_index()
-
-
-def read_maracluster_clusters(maracluster_filename: str, px_accession: str):
-    with open(maracluster_filename) as f_in:
-        usis, clusters = [], []
-        cluster_i = 0
-        for line in f_in:
-            if not line.strip():
-                cluster_i += 1
-            else:
-                filename, scan, *_ = line.split('\t')
-                usis.append(_build_usi(
-                    px_accession, os.path.splitext(filename)[0], int(scan)))
-                clusters.append(cluster_i)
-        return pd.Series(clusters, usis, name='cluster')
-
-
-def _build_usi(px_accession: str, raw_name: str, scan: int,
-               peptide_sequence: str = None, charge: int = None,
-               cluster_id: str = None):
-    usi = f'mzspec:{px_accession}:{raw_name}:scan:{scan}'
-    if peptide_sequence is not None and charge is not None:
-        usi = f'{usi}:{peptide_sequence}/{charge}'
-    if cluster_id is not None:
-        usi = f'{cluster_id};{usi}'
-    return usi
-
-
-def write_mgf(filename: str, spectra: Iterable[Dict]) -> None:
-    """
-    Write the given spectra to an MGF file.
-
-    Parameters
-    ----------
-    filename : str
-        The file name of the MGF output file.
-    spectra : List[Dict]
-        The spectra as Pyteomics dictionaries to be written to the MGF file.
-    """
-    with open(filename, 'w') as f_out:
-        pyteomics.mgf.write(spectra, f_out)
