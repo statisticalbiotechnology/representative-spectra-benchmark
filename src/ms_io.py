@@ -1,151 +1,161 @@
+import json
 import os
-import re
 from typing import Dict, Iterable
 
 import pandas as pd
 import pyteomics.mgf
 import spectrum_utils.spectrum as sus
-
-import json
-
-def read_cluster_spectra(mgf_filename: str, usi_present: bool=True, cluster_present:bool=True) -> Dict[str, sus.MsmsSpectrum]:
-    """
-    Read all spectra with cluster information from the given MGF file.
-
-    Parameters
-    ----------
-    mgf_filename : str
-        The file name of the MGF file to be read.
-    usi_present: bool
-        Do the titles of the mgf contain a USI
-    cluster_present: bool
-        Do the titles of the mgf contain a cluster ID
-
-    Raises
-    -------
-    ValueError:
-        In case of duplicate Identifiers (being USI or Cluster IDs) a
-        ValueError is raised
-    NotImplementedError:
-        In case only USIs are present, the functionality is yet undefined.
+import tqdm
 
 
-    Returns
-    -------
-    Dict[str, sus.MsmsSpectrum]
-        A dictionary with keys the USI (without optional peptide
-        identification) and as values the corresponding spectra
-        or a dictionary with clusters as keys in case no USI is
-        given in `mgf_filename`.
-    """
-    spectra = {}
-    for spectrum_dict in pyteomics.mgf.read(mgf_filename):
-        spectrum = _dict_to_spectrum(spectrum_dict)
-        if usi_present and cluster_present:
-            title = re.match(r'(cluster-\d+);(mzspec:\w+:.+:(scan|index):\d+)',
-                         spectrum.identifier)
-            spectrum.cluster, spectrum.identifier = title.group(1), title.group(2)
-            if spectrum.identifier in spectra:
-                raise ValueError(f'Non-unique USI: {spectrum.identifier}')
-            spectra[spectrum.identifier] = spectrum
-        elif cluster_present and not usi_present:
-            title = re.match(r'(cluster-\d+)',
-                         spectrum.identifier)
-            spectrum.cluster = title.group(1)
-            if spectrum.cluster in spectra:
-                raise ValueError(f'Non unique cluster identifier: {spectrum.cluster}')
-            spectra[spectrum.cluster] = spectrum
-        else:
-            raise NotImplementedError("Missing functionality for now.")
-    return spectra
+def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    ext = os.path.splitext(filename.lower())[1]
+    if ext == '.mgf':
+        yield from _read_spectra_mgf(filename)
+    elif ext == '.mzml':
+        yield from _read_spectra_mzml(filename)
+    elif ext == '.mzxml':
+        yield from _read_spectra_mzxml(filename)
+    else:
+        raise ValueError('Unsupported peak file format (supported formats: '
+                         'MGF, mzML, mzXML)')
 
 
-def _dict_to_spectrum(spectrum_dict: Dict):
-    return sus.MsmsSpectrum(
-        spectrum_dict['params']['title'],
-        spectrum_dict['params']['pepmass'][0],
-        spectrum_dict['params']['charge'][0],
-        spectrum_dict['m/z array'],
-        spectrum_dict['intensity array'],
-        retention_time=spectrum_dict['params']['rtinseconds'])
+def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    for spectrum_dict in tqdm.tqdm(pyteomics.mgf.read(filename),
+                                   desc='Spectra read', unit='spectra'):
+        spectrum = sus.MsmsSpectrum(
+            spectrum_dict['params']['title'],
+            spectrum_dict['params']['pepmass'][0],
+            spectrum_dict['params']['charge'][0],
+            spectrum_dict['m/z array'],
+            spectrum_dict['intensity array'],
+            None,
+            spectrum_dict['params'].get('rtinseconds'))
+        spectrum.filename = spectrum_dict['params'].get(
+            'filename', os.path.splitext(os.path.basename(filename))[0])
+        if 'scans' in spectrum_dict['params']:
+            spectrum.scan = spectrum_dict['params']['scans']
+        if 'cluster' in spectrum_dict['params']:
+            spectrum.cluster = spectrum_dict['params']['cluster']
+        yield spectrum
 
 
-def _spectrum_to_dict(spectrum: sus.MsmsSpectrum):
-    return {'m/z array': spectrum.mz,
-            'intensity array': spectrum.intensity,
-            'params': {'title': spectrum.identifier,
-                       'pepmass': spectrum.precursor_mz,
-                       'rtinseconds': spectrum.retention_time,
-                       'charge': spectrum.precursor_charge}}
+def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    raise NotImplementedError
 
 
-def read_maxquant_psms(msms_filename: str, px_accession: str) -> pd.Series:
-    """
-    Read the PSM scores from the given MaxQuant identifications file.
-
-    Parameters
-    ----------
-    msms_filename : str
-        The file name of the MaxQuant identifications file (msms.txt).
-    px_accession : str
-        PXD identifier for the dataset the identifications correspond to.
-        Needed to compile the USI.
-
-    Returns
-    -------
-    pd.Series
-        A `DataFrame` with as index the USI and as values the MaxQuant PSM
-        scores ("Score") and unmodified peptide sequences ("Sequence").
-    """
-    # TODO: Deal with the case when there are multiple PSMs per scan.
-    scores = pd.read_csv(
-        msms_filename, sep='\t', usecols=['Raw file', 'Scan number',
-                                          'Sequence', 'Score'])
-    scores['usi'] = (f'mzspec:{px_accession}:' + scores['Raw file'] +
-                     ':scan:' + scores['Scan number'].astype(str))
-    scores = scores[['usi', 'Sequence', 'Score']].set_index('usi')
-    return scores.sort_index()
+def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
+    raise NotImplementedError
 
 
-def read_maracluster_clusters(maracluster_filename: str, px_accession: str):
-    with open(maracluster_filename) as f_in:
-        usis, clusters = [], []
+###############################################################################
+
+
+def read_clusters(filename: str, fmt: str) -> Dict[str, int]:
+    if fmt == 'maracluster':
+        return _read_clusters_maracluster(filename)
+    elif fmt == 'pride-cluster':
+        return _read_clusters_pridecluster(filename)
+    elif fmt == 'ms-cluster':
+        return _read_clusters_mscluster(filename)
+    else:
+        raise ValueError('Unsupported cluster file format (supported formats: '
+                         'MaRaCluster, pride-cluster, MS-Cluster)')
+
+
+def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
+    with open(filename) as f_in:
+        clusters = {}
         cluster_i = 0
         for line in f_in:
             if not line.strip():
                 cluster_i += 1
             else:
                 filename, scan, *_ = line.split('\t')
-                usis.append(_build_usi(
-                    px_accession, os.path.splitext(filename)[0], int(scan)))
-                clusters.append(cluster_i)
-        return pd.Series(clusters, usis, name='cluster')
+                clusters[f'{os.path.splitext(filename)[0]}:scan:{scan}'] = \
+                    cluster_i
+        return clusters
 
 
-def _build_usi(px_accession: str, raw_name: str, scan: int,
-               peptide_sequence: str = None, charge: int = None,
-               cluster_id: str = None):
-    usi = f'mzspec:{px_accession}:{raw_name}:scan:{scan}'
-    if peptide_sequence is not None and charge is not None:
-        usi = f'{usi}:{peptide_sequence}/{charge}'
-    if cluster_id is not None:
-        usi = f'{cluster_id};{usi}'
-    return usi
+def _read_clusters_pridecluster(filename: str) -> Dict[str, int]:
+    raise NotImplementedError
 
 
-def write_mgf(filename: str, spectra: Iterable[Dict]) -> None:
-    """
-    Write the given spectra to an MGF file.
+def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
+    raise NotImplementedError
 
-    Parameters
-    ----------
-    filename : str
-        The file name of the MGF output file.
-    spectra : List[Dict]
-        The spectra as Pyteomics dictionaries to be written to the MGF file.
-    """
+
+###############################################################################
+
+
+def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
+    def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) \
+            -> Iterable[Dict]:
+        for spectrum in tqdm.tqdm(spectra, desc='Spectra written',
+                                  unit='spectra'):
+            params = {'title': spectrum.identifier,
+                      'pepmass': spectrum.precursor_mz,
+                      'charge': spectrum.precursor_charge}
+            if hasattr(spectrum, 'retention_time'):
+                params['rtinseconds'] = spectrum.retention_time
+            if hasattr(spectrum, 'filename'):
+                params['filename'] = spectrum.filename
+            if hasattr(spectrum, 'scan'):
+                params['scans'] = spectrum.scan
+            if hasattr(spectrum, 'cluster'):
+                params['cluster'] = spectrum.cluster
+            yield {'params': params,
+                   'm/z array': spectrum.mz,
+                   'intensity array': spectrum.intensity}
+
     with open(filename, 'w') as f_out:
-        pyteomics.mgf.write(spectra, f_out)
+        pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out)
+
+
+###############################################################################
+
+
+def read_psms(filename: str) -> pd.DataFrame:
+    ext = os.path.splitext(filename.lower())[1]
+    if ext == '.mztab':
+        return _read_psms_mztab(filename)
+    elif ext == '.mzidentml':
+        return _read_psms_mzidentml(filename)
+    elif ext == '.json':
+        return _read_psms_json(filename)
+    elif os.path.basename(filename) == 'msms.txt':
+        return _read_psms_maxquant(filename)
+    else:
+        raise ValueError('Unsupported PSM file format (supported formats: '
+                         'mzTab, mzIdentML, JSON, MaxQuant)')
+
+
+def _read_psms_mztab(filename: str) -> pd.DataFrame:
+    raise NotImplementedError
+
+
+def _read_psms_mzidentml(filename: str) -> pd.DataFrame:
+    raise NotImplementedError
+
+
+def _read_psms_json(filename: str) -> pd.DataFrame:
+    raise NotImplementedError
+
+
+def _read_psms_maxquant(filename: str) -> pd.DataFrame:
+    psms = (pd.read_csv(filename, sep='\t', usecols=['Raw file', 'Scan number',
+                                                     'Sequence', 'Score'])
+            .rename(columns={'Sequence': 'sequence', 'Score': 'score'}))
+    psms['spectra_ref'] = (psms['Raw file'] + ':scan:' +
+                           psms['Scan number'].astype(str))
+    return (psms[['spectra_ref', 'sequence', 'score']]
+            .drop_duplicates('spectra_ref')
+            .set_index('spectra_ref')
+            .sort_index())
+
+
+###############################################################################
 
 
 def write_distance_dict_to_json(filename: str, distances: Dict) -> None:
