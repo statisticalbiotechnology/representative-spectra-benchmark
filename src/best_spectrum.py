@@ -6,6 +6,9 @@ import pandas as pd
 import spectrum_utils.spectrum as sus
 
 import ms_io
+import logging
+
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 def get_best_representative(spectra: Dict[str, sus.MsmsSpectrum],
@@ -109,5 +112,17 @@ def best_spectrum(filename_mgf_in: str, filename_mgf_out: str,
                                          f'{representative.identifier}')
             representatives.append(ms_io._spectrum_to_dict(representative))
         except ValueError:
-            pass
+            logging.warning(f"Failed to find best spectrum for cluster: {cluster}")
     ms_io.write_mgf(filename_mgf_out, representatives)
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
+def cli():
+    pass
+
+
+cli.add_command(best_spectrum)
+# cli.add_command(convert_mq_mracluster_mzml)
+
+if __name__ == '__main__':
+        cli()

@@ -18,3 +18,9 @@ The html version of this page can be reached [here](https://statisticalbiotechno
  - [Lukas Käll](lukas.kall@scilifelab.se), KTH, Sweden
 
  
+
+### CMD execution
+```
+python src\convert_mgf_cluster.py mgf_add_cluster -s data\01650b_BA5-TUM_first_pool_75_01_01-3xHCD-1h-R2.mgf -c data\MaRaCluster.clusters_p30.tsv -o out.mgf -a PXD004732
+python src\best_spectrum.py best_spectrum -s out.mgf -o best_spectrum.mgf -m msms.txt
+```
