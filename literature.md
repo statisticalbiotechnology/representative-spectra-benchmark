@@ -18,3 +18,11 @@ Different strategies have been suggested for forming representative spectra. [Fr
 
 Proteome tool's publication [Zolg *et al.*](https://www.nature.com/articles/nmeth.4153)
 We have extracted a subset of this set to a [google drive](https://drive.google.com/drive/u/1/folders/1VO9VXTsfacZB7yna_3yw77a7AegRu34G).
+
+## References
+- [Frank et al. (JPR 2008)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2533155/)
+- [Wang et al. (bioRxiv_2018)](https://www.biorxiv.org/content/10.1101/308627v2.full.pdf)
+- [Saeed et al. (Trans Comput Biol Bioinform 2014)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6143137/)
+- [Griss et al. (Nat Methods 2013), see supplementary material](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3667236/)
+- [Perez‐Riverol et al.(Proteomics 2018)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6099476/)
+- [Denoising Peptide Tandem Mass Spectra for Spectral Libraries: A Bayesian Approach](https://pubs.acs.org/doi/10.1021/pr400080b)

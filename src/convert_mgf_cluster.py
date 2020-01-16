@@ -6,35 +6,38 @@ import pyteomics.mgf
 
 import ms_io
 
+
 logger = logging.getLogger('specpride')
+
+
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 def print_help():
     """
-
     This method provide a general help for the framework
-
-    Returns
-    -------
-
+    :return:
     """
     ctx = click.get_current_context()
     click.echo(ctx.get_help())
     ctx.exit()
 
 
-@click.command('mgf_add_cluster', short_help='Add MaRaCluster cluster assignments to MGF')
-@click.option('--filename_mgf', '-s', help='MGF file containing the spectra')
-@click.option('--filename_cluster', '-c', help='File containing cluster assignments')
+@click.command('mgf_add_cluster',
+               short_help='Add MaRaCluster cluster assignments to MGF')
+@click.option('--filename_mgf', '-s', help='MGF file containing the spectra',
+               required=True)
+@click.option('--filename_cluster', '-c',
+              help='File containing MaRaCluster cluster assignments',
+              required=True)
 @click.option('--filename_out', '-o',
-              help='Output MGF file name containing the updated spectra')
+              help='Output MGF file name containing the updated spectra',
+              required=True)
 @click.option('--px_accession', '-a', help='ProteomeXchange accession of the '
-                                           'project (used to compile USIs)')
-@click.option('--cluster_method', '-m',  type=click.Choice(['MaRaCluster', 'SpectraCluster'],
-              case_sensitive=False), default='MaRaCluster', help='Provide the cluster method', show_default=True)
+                                           'project (used to compile USIs)',
+                                           required=True)
 def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
-                    filename_out: str, px_accession: str, cluster_method: str):
+                    filename_out: str, px_accession: str):
     if (filename_mgf is None or filename_cluster is None or
             filename_out is None or px_accession is None):
         print_help()
@@ -65,12 +68,12 @@ def mgf_add_cluster(filename_mgf: str, filename_cluster: str,
 
 
 @click.command('convert-mq-marcluster-mzml', short_help='Command to convert MaxQuant Results and MaCluster into MGF')
-@click.option('--mq_msms', '-p', help='Peptide information from MaxQuant')
-@click.option('--mrcluster_clusters', '-c', help='The information of the clusters from MaRCluster')
-@click.option('--mzml_file', '-s', help='The mgf with the corresponding spectra')
-@click.option('--output', '-o', help='Output mgf containing the cluster and the spectra information')
-@click.option('--px_accession', '-a', help='ProteomeXchange accession of the project')
-@click.option('--raw_name', '-r', help='Original name of the RAW file in proteomeXchange')
+@click.option('--mq_msms', '-p', required=True, help='Peptide information from MaxQuant')
+@click.option('--mrcluster_clusters', '-c', required=True, help='The information of the clusters from MaRCluster')
+@click.option('--mzml_file', '-s', required=True, help='The mgf with the corresponding spectra')
+@click.option('--output', '-o', required=True, help='Output mgf containing the cluster and the spectra information')
+@click.option('--px_accession', '-a', required=True, help='ProteomeXchange accession of the project')
+@click.option('--raw_name', '-r', required=True, help='Original name of the RAW file in proteomeXchange')
 def convert_mq_mracluster_mzml(mq_msms, mrcluster_clusters, mzml_file, output, px_accession, raw_name):
     raise NotImplementedError   # TODO
 
@@ -120,12 +123,12 @@ def cli():
 
 
 cli.add_command(mgf_add_cluster)
-cli.add_command(convert_mq_mracluster_mzml)
+# cli.add_command(convert_mq_mracluster_mzml)
 
 if __name__ == '__main__':
     logging.basicConfig(format='{asctime} [{levelname}/{processName}] '
                                '{module}.{funcName} : {message}',
-                        style='{', level=logging.DEBUG)
+                        style='{', level=logging.DEBUG, force=True)
 
     cli()
 
