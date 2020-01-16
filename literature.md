@@ -25,3 +25,4 @@ We have extracted a subset of this set to a [google drive](https://drive.google.
 - [Saeed et al. (Trans Comput Biol Bioinform 2014)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6143137/)
 - [Griss et al. (Nat Methods 2013), see supplementary material](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3667236/)
 - [Perez‐Riverol et al.(Proteomics 2018)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6099476/)
+- [Denoising Peptide Tandem Mass Spectra for Spectral Libraries: A Bayesian Approach](https://pubs.acs.org/doi/10.1021/pr400080b)
