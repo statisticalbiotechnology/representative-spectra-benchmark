@@ -37,17 +37,10 @@ def average_cos_dist(representative_spectrum, cluster_members):
     else:
         return 0.0
 
-def fraction_of_by(peptide_seq, precursor_mz, precursor_charge,mz, intensity):
-    if not parser.fast_valid(peptide_seq):
-        print("Invalid peptide sequence encountered", file=sys.stderr)
-        return 0.0
-    spec = sus.MsmsSpectrum(
-        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity,
-        peptide=peptide_seq)
-    fragment_tol_mass = 50
-    fragment_tol_mode = 'ppm'
-    spectrum = (spectrum.set_mz_range(min_mz=100, max_mz=1400)
-            .remove_precursor_peak(fragment_tol_mass, fragment_tol_mode)
+def fraction_of_by(representative_spectrum, cluster_members=[]):
+    fragment_tol_mass = 0.005
+    fragment_tol_mode = 'Da'
+    spectrum = (representative_spectrum.remove_precursor_peak(fragment_tol_mass, fragment_tol_mode)
             .annotate_peptide_fragments(fragment_tol_mass, fragment_tol_mode,
                                         ion_types='by'))
     current, by_current = 0.,0.
@@ -59,6 +52,15 @@ def fraction_of_by(peptide_seq, precursor_mz, precursor_charge,mz, intensity):
         return by_current/current
     else:
         return 0.0
+
+def fraction_of_by_seq(peptide_seq, precursor_mz, precursor_charge,mz, intensity):
+    if not parser.fast_valid(peptide_seq):
+        print("Invalid peptide sequence encountered", file=sys.stderr)
+        return 0.0
+    spec = sus.MsmsSpectrum(
+        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity,
+        peptide=peptide_seq)
+    return fraction_of_by(spec)
 
 if __name__ == "__main__":
     # If the library is called as main, run some rudementary tests of the functions
@@ -72,9 +74,12 @@ if __name__ == "__main__":
         intensity = spectrum_dict['intensity array']
         break
 
-    print (fraction_of_by(peptide_seq, precursor_mz, precursor_charge,mz, intensity))
+    print (fraction_of_by_seq(peptide_seq, precursor_mz, precursor_charge,mz, intensity))
+    print(spectrum_dict['params']['title'].split(':')[-1])
+    print(peptide_seq)
 
     spec = sus.MsmsSpectrum(
-        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity)
+        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge,mz=mz, intensity=intensity, peptide=peptide_seq)
 
     print(average_cos_dist(spec, [spec]))
+    print (fraction_of_by(spec,[]))
