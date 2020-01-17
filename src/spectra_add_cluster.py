@@ -54,7 +54,7 @@ def spectra_add_cluster(filename_spectra: str,
 if __name__ == '__main__':
     logging.basicConfig(format='{asctime} [{levelname}/{processName}] '
                                '{module}.{funcName} : {message}',
-                        style='{', level=logging.DEBUG)
+                        style='{', level=logging.INFO)
 
     spectra_add_cluster()
 
