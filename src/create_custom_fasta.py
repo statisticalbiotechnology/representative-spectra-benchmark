@@ -1,11 +1,14 @@
 from pyteomics import parser, fasta
 import argparse
 
+
 def smart_reverse(prot_seq):
     '''
     Produces a reverse decoy sequence keeping all K and R aminoacids in the same positions.
     '''
-    return ''.join(fasta.decoy_sequence(pep, mode='reverse', keep_cterm=True) for pep in parser._cleave(prot_seq, '[RK]', 0))
+    return ''.join(
+        fasta.decoy_sequence(pep, mode='reverse', keep_cterm=True) for pep in parser._cleave(prot_seq, '[RK]', 0))
+
 
 def make_reverse_fasta(input_file, output_file):
     '''
@@ -15,8 +18,9 @@ def make_reverse_fasta(input_file, output_file):
     for prot_desc, prot_seq in fasta.read(input_file):
         if not prot_desc.endswith('_REVERSED'):
             prots.append((prot_desc, prot_seq))
-            prots.append((prot_desc+'_REVERSED', smart_reverse(prot_seq)))
+            prots.append((prot_desc + '_REVERSED', smart_reverse(prot_seq)))
     fasta.write(prots, output_file, file_mode='w')
+
 
 def main():
     pars = argparse.ArgumentParser()
@@ -24,6 +28,7 @@ def main():
     pars.add_argument('output', nargs='?', help='Output fasta file (default is stdout).')
     args = pars.parse_args()
     make_reverse_fasta(args.input, args.output)
+
 
 if __name__ == '__main__':
     main()
