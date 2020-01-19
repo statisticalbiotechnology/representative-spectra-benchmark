@@ -18,7 +18,7 @@ We selected the run described by [TUM_first_pool_75_01_01_3xHCD-1h-R2-tryptic.zi
   - Precursor mass Tolerance (10 ppm)
   - Fragment mass Tolerance (20.0 ppm)
 
- The Fasta database used to perform the search can be found [here](final_concatenated_target_decoy.fasta)
+ The Fasta database used to perform the search can be found [here](https://raw.githubusercontent.com/statisticalbiotechnology/specpride/master/datasets/PXD004732/final_concatenated_target_decoy.fasta)
 
 
 For convenience, we made the data available through a [google drive](https://drive.google.com/open?id=1UkI6Uvuo9AimRrGJGMjfLWSMZgFoDm9k).
