@@ -5,14 +5,13 @@ import ms_io
 import logging
 import metrics as mx
 
-
 logger = logging.getLogger('specpride')
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 @click.command('evaluate_representatives',
-    short_help='Compare an mgf with clustered spectra with a representatives mgf by metric x'
-)
+               short_help='Compare an mgf with clustered spectra with a representatives mgf by metric x'
+               )
 @click.option(
     '--cluster_members_file_name', '-c',
     help='MGF file containing the cluster member spectra',
@@ -39,11 +38,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     default=False
 )
 def evaluate_representatives(
-    cluster_members_file_name,
-    representatives_file_name,
-    out_file_name,
-    metric_option="average_cos_dist",
-    verbose=False,
+        cluster_members_file_name,
+        representatives_file_name,
+        out_file_name,
+        metric_option="average_cos_dist",
+        verbose=False,
 ):
     if metric_option == "average_cos_dist":
         metric = mx.average_cos_dist
@@ -58,7 +57,7 @@ def evaluate_representatives(
     logging.info(f"Grouping cluster member spectra")
     for cluster_member in cluster_member_spectra.values():
         clusters[cluster_member.cluster].append(cluster_member)
-    logging.info(f"Reading representatative member spectra from {representatives_file_name}")
+    logging.info(f"Reading representative member spectra from {representatives_file_name}")
     representative_spectra = ms_io.read_cluster_spectra(
         representatives_file_name,
         usi_present=False
@@ -89,7 +88,6 @@ def cli():
 
 
 cli.add_command(evaluate_representatives)
-
 
 if __name__ == '__main__':
     try:
