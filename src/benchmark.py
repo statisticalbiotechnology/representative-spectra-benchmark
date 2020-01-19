@@ -57,7 +57,7 @@ def evaluate_representatives(
     logging.info(f"Grouping cluster member spectra")
     for cluster_member in cluster_member_spectra.values():
         clusters[cluster_member.cluster].append(cluster_member)
-    logging.info(f"Reading representatative member spectra from {representatives_file_name}")
+    logging.info(f"Reading representative member spectra from {representatives_file_name}")
     representative_spectra = ms_io.read_cluster_spectra(
         representatives_file_name,
         usi_present=False

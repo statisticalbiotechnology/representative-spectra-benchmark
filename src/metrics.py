@@ -71,8 +71,8 @@ def fraction_of_by_seq(peptide_seq, precursor_mz, precursor_charge, mz, intensit
 if __name__ == "__main__":
     # If the library is called as main, run some rudementary tests of the functions
 
-    for spectrum_dict in mgf.read("data/clusters_maracluster.mgf"):
-        #    for spectrum_dict in mgf.read("data/.mgf"):
+    for spectrum_dict in mgf.read("datasets/clusters_maracluster.mgf"):
+        #    for spectrum_dict in mgf.read("datasets/.mgf"):
         peptide_seq = spectrum_dict['params']['title'].split(':')[-1][:-2]
         precursor_mz = spectrum_dict['params']['pepmass'][0]
         precursor_charge = spectrum_dict['params']['charge'][0]

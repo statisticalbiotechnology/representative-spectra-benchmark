@@ -1,0 +1,21 @@
+# Benchmarking datasets
+
+Here we will describe the datasets use to benchmark the different methods:
+
+ - Synthetic peptides of [proteome tools]( http://www.proteometools.org/index.php?id=52) , i.e. [PXD004732](https://www.ebi.ac.uk/pride/archive/projects/PXD004732).
+
+## Synthetic peptides (PXD004732)
+
+We selected the run described by [TUM_first_pool_75_01_01_3xHCD-1h-R2-tryptic.zip](https://drive.google.com/open?id=1nDF2yOY2JU0UNml-MEMVGZHOoZD9uAB_), and its associated spectra [01650b_BA5-TUM_first_pool_75_01_01-3xHCD-1h-R2.raw](https://drive.google.com/open?id=1P0TWB9O0PzVCB1_1m3gxq93T2ZsYrul1).
+
+ - [MzML](https://drive.google.com/open?id=1CeAFcPZNzjHd7tqAntXupwKt0n5E2fza)
+ - [MGF](https://drive.google.com/open?id=1nRGllZeNmHupXnIaPoy27Oz1NLIEjw4F)
+
+ Some of the original parameters for the search are the following:
+
+  - Oxidation M (Variable Modification)
+  - Carbamidomethyl (C) (Fixed Modification)
+  - Precursor mass Tolerance (10 ppm)
+  - Fragment mass Tolerance (20.0 ppm)
+
+For convenience, we made the data available through a [google drive](https://drive.google.com/open?id=1UkI6Uvuo9AimRrGJGMjfLWSMZgFoDm9k).
