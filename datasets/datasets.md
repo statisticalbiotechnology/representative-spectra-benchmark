@@ -17,6 +17,7 @@ We selected the run described by [TUM_first_pool_75_01_01_3xHCD-1h-R2-tryptic.zi
   - Carbamidomethyl (C) (Fixed Modification)
   - Precursor mass Tolerance (10 ppm)
   - Fragment mass Tolerance (20.0 ppm)
+  - Enzyme (Trypsin), fully , no - miss-cleavages
 
  The Fasta database used to perform the search can be found [here](https://raw.githubusercontent.com/statisticalbiotechnology/specpride/master/datasets/PXD004732/final_concatenated_target_decoy.fasta)
 
