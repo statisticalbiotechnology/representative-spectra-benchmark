@@ -128,5 +128,14 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea/
-*.nf
 data/
+
+# Nextflow temp
+
+.nextflow*
+work/
+*.idXML
+*.mzid
+
+
+
