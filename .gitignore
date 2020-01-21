@@ -136,6 +136,6 @@ data/
 work/
 *.idXML
 *.mzid
-
+*.mzML
 
 
