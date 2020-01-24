@@ -36,6 +36,10 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
                 help='Method used to select the representative spectrum for '
                      'each cluster (options: "best_spectrum", "most_similar", '
                      '"bin")')
+@click.option('--min_cluster_size', type=int,
+              default=5, show_default=True,
+              help='Only consider clusters consisting of a minimum number of '
+                   'spectra (optional)')
 # Options for BestSpectrumRepresentativeSelector.
 @click.option('--psm', 'filename_psm',
               type=click.Path(exists=True, dir_okay=False),
@@ -76,7 +80,7 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
                    'm/z is closer to the bin edge than the given relative bin '
                    'size threshold (optional; required for the "bin" method)')
 def representative(filename_in: str, filename_out: str,
-                   representative_method: str,
+                   representative_method: str, min_cluster_size: int = 5,
                    filename_psm: str = None,
                    sim: str = 'dot', fragment_mz_tolerance: float = 0.02,
                    min_mz: float = 100., max_mz: float = 2000.,
@@ -107,10 +111,12 @@ def representative(filename_in: str, filename_out: str,
             get_cluster_spectra(spectra), desc='Clusters processed',
             unit='clusters'):
         try:
-            cluster_representative = rs.select_representative(cluster_spectra)
-            cluster_representative.identifier = (f'{rs.get_description()}:'
-                                                 f'cluster={cluster_key}')
-            cluster_representatives.append(cluster_representative)
+            if len(cluster_spectra) >= min_cluster_size:
+                cluster_representative = rs.select_representative(
+                    cluster_spectra)
+                cluster_representative.identifier = \
+                    f'{rs.get_description()}:cluster={cluster_key}'
+                cluster_representatives.append(cluster_representative)
         except ValueError:
             # logger.warning('No representative found for cluster %s',
             #                cluster_key)
