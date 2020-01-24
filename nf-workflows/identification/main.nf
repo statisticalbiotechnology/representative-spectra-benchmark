@@ -12,7 +12,8 @@
  *   --fdr_config The FDR config provides the parameters to filter peptides/proteins
  *   --idfilter_config The Identification filter config
  *   --result_folder Export to the following folder the results.
- *
+ *   --phospho (true | false) Perform Phospho Localization
+ *   --phospho_config Provide a Phospho localization configuration file for LuciphorAdapter
  */
 
 (mz_files, mz_result_files) = Channel.fromPath("${params.mzml_folder}/*.mzML").into(2)
@@ -26,6 +27,10 @@ id_config    = file(params.id_config)
 index_config = file(params.index_config)
 fdr_config   = file(params.fdr_config)
 idfilter_config = file(params.idfilter_config)
+phospho_config  = file(params.phospho_config)
+
+params.phospho = false
+
 
 params.result_folder ='results'
 result_folder = params.result_folder
@@ -190,7 +195,7 @@ process peptideFDRFilter {
    file idfilter_config
 
    output:
-   file "*.idXML" into peptide_xmls, peptide_convert_xmls
+   file "*.idXML" into peptide_xmls, peptide_convert_xmls, phospho_xmls
 
    script:
    """
@@ -199,6 +204,38 @@ process peptideFDRFilter {
 }
 
 
+/**
+ * IDFilter This step filter the peptides using the FDR computation
+ */
+process phosphoLocalization {
+
+   container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
+   publishDir "${params.result_folder}", mode: 'copy', overwrite: true
+
+   when:
+    params.phospho
+
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
+
+   input:
+   file fdr_xml from phospho_xmls
+   file phospho_config
+
+   output:
+   file "*.idXML" into convert_phospho_xmls
+
+   script:
+   """
+   LuciphorAdapter -ini "${phospho_config}" -in ${fdr_xml} -out ${fdr_xml.baseName}-phospho.idXML
+   """
+}
+
+merged_files = peptide_convert_xmls.mix(convert_phospho_xmls)
+
+/**
+ * Convert a set of idXML files to mzIdentML
+ */
 process convertMZIdML{
 
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
@@ -208,8 +245,7 @@ process convertMZIdML{
    errorStrategy 'retry'
 
    input:
-   file filter_file from peptide_convert_xmls
-
+   file filter_file from merged_files
 
    output:
    file "*.mzid" into peptide_mzids
@@ -218,57 +254,4 @@ process convertMZIdML{
    """
    IDFileConverter -in ${filter_file} -out ${filter_file.baseName}.mzid
    """
-}
-
-(mzMLs, mzML_print) = mz_result_files.map { file -> tuple(file.name, file)}.into(2)
-(peptide_collection, peptide_print) = peptide_xmls.map { file -> tuple(file.baseName.replaceFirst("-index-fdr-filter",""), file)}.into(2)
-(combined_results, print_combined) = mzMLs.combine(peptide_collection, by: 0).into(2)
-
-
-mzML_print.subscribe{ println "value: $it"}
-peptide_print.subscribe{ println "value: $it"}
-print_combined.subscribe{ println "value: $it"}
-
-process idQualityControl{
-   container 'mwalzer/openms-batteries-included:V2.3.0_pepxmlpatch'
-   publishDir "${params.result_folder}", mode: 'copy', overwrite: true
-
-   input:
-   set val(mzML), file(mzML_file), file(idx_file) from combined_results
-
-   output:
-   file "*.qcML" into qc_MLs
-
-   script:
-   """
-   QCCalculator -in ${mzML_file} -id ${idx_file} -out ${mzML}.qcML
-   """
-}
-
-qc_tool_parameters = ['fracmass', 'auctic', 'charge_histogram', 'dppm', 'dppm_time', 'dppm_percentiles', 'esiinstability', 'gravy',
-                                  'idmap', 'id_oversampling', 'lengthdistro', 'ms1peakcount', 'ms2peakcount', 'repeatid',
-                                  'rt_events',  'tic', 'ticric', 'topn']
-
-/**
- * 'ms1sn', 'ms2sn', 'sn'
- */
-
-process plotQualityControl{
-
-  container 'mwalzer/qc-plotter:latest'
-  publishDir "${params.result_folder}", mode: 'copy', overwrite: true
-
-  input:
-  file qc_ML from qc_MLs
-  each param from qc_tool_parameters
-
-
-  output:
-  file "*.png" into plots
-
-  script:
-  """
-  qc_plot.sh -$param ${qc_ML}
-  """
-
 }
