@@ -15,6 +15,20 @@ logger = logging.getLogger('cluster_representative')
 
 def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
         -> Iterable[Dict[str, sus.MsmsSpectrum]]:
+    """
+    Get collections of spectra for each cluster.
+
+    Parameters
+    ----------
+    spectra : Dict[str, sus.MsmsSpectrum]
+        A dictionary of spectra with as keys the spectrum identifiers and as
+        values the MsmsSpectrum object.
+
+    Returns
+    -------
+    Iterable[Dict[str, sus.MsmsSpectrum]]
+        An iterable of spectrum dictionaries (see above) grouped by cluster.
+    """
     clusters = collections.defaultdict(list)
     for spectrum_key, spectrum in spectra.items():
         clusters[spectrum.cluster].append(spectrum_key)
@@ -86,6 +100,49 @@ def representative(filename_in: str, filename_out: str,
                    min_mz: float = 100., max_mz: float = 2000.,
                    bin_size: float = 0.02, bin_peak_quorum: float = 0.25,
                    bin_edge_case_threshold: float = 0.5) -> None:
+    """
+    Select representative spectra for clusters using a specific selection
+    method.
+
+    Parameters
+    ----------
+    filename_in : str
+        Input MGF file containing cluster assignments.
+    filename_out : str
+        Output MGF file containing representative spectra for each cluster.
+    representative_method : str
+        Method used to select the representative spectrum for each cluster
+        (options: "best_spectrum", "most_similar", "bin").
+    min_cluster_size : int
+        Only consider clusters consisting of a minimum number of spectra
+        (optional).
+    filename_psm : str
+        Input PSM file (optional; supported formats: mzTab, mzIdentML, JSON,
+        MaxQuant; required for the "best_spectrum" method).
+    sim : str
+        Similarity measure to compare spectra to each other (optional; required
+        for the "most_similar" method; options: "dot").
+    fragment_mz_tolerance : float
+        Fragment m/z tolerance used during spectrum comparison (optional;
+        required for the "most_similar" method).
+    min_mz : float
+        Minimum m/z to consider for spectrum binning (optional; required for
+        the "bin" method).
+    max_mz : float
+        Maximum m/z to consider for spectrum binning (optional; required for
+        the "bin" method).
+    bin_size : float
+        Bin size in m/z used for spectrum binning (optional; required for the
+        "bin" method).
+    bin_peak_quorum : float
+        Relative number of spectra in a cluster that need to contain a peak for
+        it to be included in the representative spectrum (optional; required
+        for the "bin" method).
+    bin_edge_case_threshold : float
+        During binning try to correct m/z edge cases where the m/z is closer to
+        the bin edge than the given relative bin size threshold (optional;
+        required for the "bin" method).
+    """
     logger.info('Read spectra from spectrum file %s', filename_in)
     spectra = {f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
                for spectrum in ms_io.read_spectra(filename_in)}
