@@ -140,8 +140,7 @@ class MostSimilarRepresentativeSelector(RepresentativeSelector):
     maximum average similarity to all other spectra in the cluster.
     """
 
-    def __init__(self, sim: str = 'dot',
-                 fragment_mz_tolerance: float = 0.02):
+    def __init__(self, sim: str, fragment_mz_tolerance: float):
         """
         Initialize the selector with the given similarity measure.
 
@@ -214,9 +213,8 @@ class BinningRepresentativeSelector(RepresentativeSelector):
     cluster.
     """
 
-    def __init__(self, min_mz: float = 100., max_mz: float = 2000.,
-                 bin_size: float = 0.02, peak_quorum: float = 0.25,
-                 edge_case_threshold: float = 0.5):
+    def __init__(self, min_mz: float, max_mz: float, bin_size: float,
+                 peak_quorum: float, edge_case_threshold: float):
         """
         Initialize the selector with the information needed to compute average
         binned representatives.
