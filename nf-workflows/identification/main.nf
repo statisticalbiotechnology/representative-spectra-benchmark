@@ -55,6 +55,30 @@ process peptideIdentification {
 }
 
 /**
+ * Merge Identification files from multiple RAW files.
+ */
+process idMerger {
+
+   container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
+   publishDir "${params.result_folder}", mode: 'copy', overwrite: true
+
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
+
+   input:
+   file(input_files) from id_xmls.collect()
+
+   output:
+   file "*.idXML" into merged_xmls
+
+   script:
+   """
+   IDMerger -in ${(input_files as List).join(" ")} -out merged-global-index.idXML
+   """
+
+}
+
+/**
  * This function is needed to compute the PSM features
  */
 process psm_features{
@@ -62,8 +86,11 @@ process psm_features{
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
    publishDir "${params.result_folder}", mode: 'copy', overwrite: true
 
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
+
    input:
-   file id_xml from id_xmls
+   file id_xml from merged_xmls
 
    output:
    file "*.idXML" into psm_features_xmls
@@ -81,6 +108,9 @@ process peptideIndexer {
 
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
    publishDir "${params.result_folder}", mode: 'copy', overwrite: true
+
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
 
    input:
    file id_xml from psm_features_xmls
@@ -104,6 +134,9 @@ process percolator{
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
    publishDir "${params.result_folder}", mode: 'copy', overwrite: true
 
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
+
    input:
    file id_xml from index_xmls
 
@@ -123,6 +156,9 @@ process peptideFDRCompute {
 
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq'
    publishDir "${params.result_folder}", mode: 'copy', overwrite: true
+
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
 
    input:
    file index_xml from percolator_xmls
@@ -146,6 +182,9 @@ process peptideFDRFilter {
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
    publishDir "${params.result_folder}", mode: 'copy', overwrite: true
 
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
+
    input:
    file fdr_xml from fdr_xmls
    file idfilter_config
@@ -164,6 +203,9 @@ process convertMZIdML{
 
    container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
    publishDir "${params.result_folder}", mode: 'copy', overwrite: true
+
+   memory { 16.GB * task.attempt }
+   errorStrategy 'retry'
 
    input:
    file filter_file from peptide_convert_xmls
