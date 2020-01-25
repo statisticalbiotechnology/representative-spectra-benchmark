@@ -289,8 +289,21 @@ def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
 
 
 def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
+    """
+    Write the given spectra to an MGF file.
+
+    Parameters
+    ----------
+    filename : str
+        The MGF file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the MGF file.
+    """
     def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) \
             -> Iterable[Dict]:
+        """
+        Convert MsmsSpectrum objects to Pyteomics MGF spectrum dictionaries.
+        """
         for spectrum in tqdm.tqdm(spectra, desc='Spectra written',
                                   unit='spectra'):
             params = {'title': spectrum.identifier,
@@ -316,6 +329,21 @@ def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
 
 
 def read_psms(filename: str) -> pd.DataFrame:
+    """
+    Read spectrum identifications.
+
+    Parameters
+    ----------
+    filename : str
+        The PSM file name. Supported formats: mzTab, mzIdentML, JSON, MaxQuant.
+
+    Returns
+    -------
+    pd.DataFrame
+        A Pandas DataFrame with as rows the PSMs and as columns "sequence" and
+        "score", indexed by their spectrum reference in the form of
+        {filename}:scan:{scan}.
+    """
     ext = os.path.splitext(filename.lower())[1]
     if ext == '.mztab':
         return _read_psms_mztab(filename)
@@ -331,18 +359,102 @@ def read_psms(filename: str) -> pd.DataFrame:
 
 
 def _read_psms_mztab(filename: str) -> pd.DataFrame:
-    raise NotImplementedError
+    """
+    Read mzTab spectrum identifications.
+
+    To correctly have the PSM index the "spectra_ref" column of the mzTab file
+    should use the scan number specification.
+
+    Parameters
+    ----------
+    filename : str
+        The mzTab file name.
+
+    Returns
+    -------
+    pd.DataFrame
+        A Pandas DataFrame with as rows the PSMs and as columns "sequence" and
+        "score", indexed by their spectrum reference in the form of
+        {filename}:scan:{scan}.
+    """
+    run_names, skiplines, nrows = {}, 0, 0
+    with open(filename) as f_in:
+        for i, line in enumerate(f_in):
+            if line.startswith('MTD') and 'ms_run' in line:
+                run_id = line[line.find('ms_run['):line.find('-location')]
+                run_name = os.path.splitext(os.path.basename(
+                    line.rsplit('\t', 1)[1]))[0]
+                run_names[run_id] = run_name
+            elif line.startswith('PSH'):
+                skiplines = i
+            elif line.startswith('PSM'):
+                nrows += 1
+
+    psms = (pd.read_csv(filename, sep='\t', header=skiplines, nrows=nrows + 1)
+            .rename(columns={'search_engine_score[1]': 'score'}))
+    run = psms['spectra_ref'].str.slice(stop=psms['spectra_ref'].str.find(':'))
+    scan = psms['spectra_ref'].str.slice(psms['spectra_ref'].str.rfind('='))
+    psms['spectra_ref'] = run.map(run_names) + ':scan:' + scan
+    return (psms[['spectra_ref', 'sequence', 'score']]
+            .drop_duplicates('spectra_ref')
+            .set_index('spectra_ref')
+            .sort_index())
 
 
 def _read_psms_mzidentml(filename: str) -> pd.DataFrame:
+    """
+    Read mzIdentML spectrum identifications.
+
+    Parameters
+    ----------
+    filename : str
+        The mzIdentML file name.
+
+    Returns
+    -------
+    pd.DataFrame
+        A Pandas DataFrame with as rows the PSMs and as columns "sequence" and
+        "score", indexed by their spectrum reference in the form of
+        {filename}:scan:{scan}.
+    """
     raise NotImplementedError
 
 
 def _read_psms_json(filename: str) -> pd.DataFrame:
+    """
+    Read JSON spectrum identifications.
+
+    Parameters
+    ----------
+    filename : str
+        The JSON file name.
+
+    Returns
+    -------
+    pd.DataFrame
+        A Pandas DataFrame with as rows the PSMs and as columns "sequence" and
+        "score", indexed by their spectrum reference in the form of
+        {filename}:scan:{scan}.
+    """
     raise NotImplementedError
 
 
 def _read_psms_maxquant(filename: str) -> pd.DataFrame:
+    """
+    Read MaxQuant spectrum identifications.
+
+    Parameters
+    ----------
+    filename : str
+        The MaxQuant PSM file name (msms.txt).
+
+    Returns
+    -------
+    pd.DataFrame
+        A Pandas DataFrame with as rows the PSMs and as columns "sequence" and
+        "score", indexed by their spectrum reference in the form of
+        {filename}:scan:{scan}.
+    """
     psms = (pd.read_csv(filename, sep='\t', usecols=['Raw file', 'Scan number',
                                                      'Sequence', 'Score'])
             .rename(columns={'Sequence': 'sequence', 'Score': 'score'}))
