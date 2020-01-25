@@ -174,37 +174,115 @@ def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
 
 
 def read_clusters(filename: str, fmt: str) -> Dict[str, int]:
+    """
+    Read cluster assignments.
+
+    Parameters
+    ----------
+    filename : str
+        The cluster assignment file name.
+    fmt : str
+        Format of the cluster assignment file. Supported formats:
+        "maracluster", "spectra-cluster", "ms-cluster".
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
     if fmt == 'maracluster':
         return _read_clusters_maracluster(filename)
-    elif fmt == 'pride-cluster':
-        return _read_clusters_pridecluster(filename)
+    elif fmt == 'spectra-cluster':
+        return _read_clusters_spectracluster(filename)
     elif fmt == 'ms-cluster':
         return _read_clusters_mscluster(filename)
     else:
         raise ValueError('Unsupported cluster file format (supported formats: '
-                         'MaRaCluster, pride-cluster, MS-Cluster)')
+                         'MaRaCluster, spectra-cluster, MS-Cluster)')
 
 
 def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
+    """
+    Read MaRaCluster cluster assignments.
+
+    Parameters
+    ----------
+    filename : str
+        The MaRaCluster cluster assignment file name.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
     with open(filename) as f_in:
-        clusters = {}
-        cluster_i = 0
+        clusters, cluster_i = {}, 0
         for line in f_in:
             if not line.strip():
                 cluster_i += 1
             else:
-                filename, scan, *_ = line.split('\t')
-                clusters[f'{os.path.splitext(filename)[0]}:scan:{scan}'] = \
+                fn, scan, *_ = line.split('\t')
+                clusters[f'{os.path.splitext(fn)[0]}:scan:{scan}'] = \
                     cluster_i
         return clusters
 
 
-def _read_clusters_pridecluster(filename: str) -> Dict[str, int]:
-    raise NotImplementedError
+def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
+    """
+    Read spectra-cluster cluster assignments.
+
+    Parameters
+    ----------
+    filename : str
+        The spectra-cluster cluster assignment file name.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    with open(filename) as f_in:
+        clusters, cluster_i = {}, 0
+        for line in f_in:
+            if line.startswith('=Cluster='):
+                cluster_i += 1
+            elif line.startswith('SPEC'):
+                fn = line[line.find('#file') + len('#file'):line.find('#id')]
+                scan = line[line.find('#id=index=') + len('#id=index='):
+                            line.find('#title')]
+                clusters[f'{os.path.splitext(fn)[0]}:scan:{scan}'] = \
+                    cluster_i
+        return clusters
 
 
 def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
-    raise NotImplementedError
+    """
+    Read MS-Cluster cluster assignments.
+
+    Parameters
+    ----------
+    filename : str
+        The MS-Cluster cluster assignment file name.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    logger.warning('MS-Cluster output reading is not fully supported')
+    with open(filename) as f_in:
+        clusters, cluster_i = {}, 0
+        for line in f_in:
+            if line.startswith('mscluster'):
+                cluster_i += 1
+            elif not line.isspace():
+                # FIXME: Missing file information for MS-Cluster output?
+                clusters[int(line.split('\t')[2])] = cluster_i
+        return clusters
 
 
 ###############################################################################
