@@ -96,64 +96,37 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
         try:
             for spectrum_dict in f_in:
                 if int(spectrum_dict.get('ms level', -1)) == 2:
-                    try:
-                        spectrum = _parse_spectrum_dict_mzml(spectrum_dict)
+                    precursor = spectrum_dict['precursorList']['precursor'][0]
+                    precursor_ion = (precursor['selectedIonList']
+                                     ['selectedIon'][0])
+                    if 'charge state' in precursor_ion:
+                        precursor_charge = int(precursor_ion['charge state'])
+                    elif 'possible charge state' in precursor_ion:
+                        precursor_charge = int(
+                            precursor_ion['possible charge state'])
+                    else:
+                        logger.warning('Unknown precursor charge, skipped '
+                                       'spectrum...')
+                        continue
+                    spectrum = sus.MsmsSpectrum(
+                        spectrum_dict['id'],
+                        precursor_ion['selected ion m/z'],
+                        precursor_charge,
+                        spectrum_dict['m/z array'],
+                        spectrum_dict['intensity array'],
+                        None,
+                        (spectrum_dict['scanList']['scan'][0]
+                                      ['scan start time']))
+                    if 'scan=' in spectrum.identifier:
+                        spectrum.scan = int(
+                            spectrum.identifier[
+                                spectrum.identifier.find('scan=')
+                                + len('scan='):])
                         spectrum.filename = os.path.splitext(
                             os.path.basename(filename))[0]
-                        yield spectrum
-                    except ValueError as e:
-                        pass
-                        # logger.warning('Failed to read spectrum %s: %s',
-                        #                spectrum['id'], e)
+                    yield spectrum
         except LxmlError as e:
             logger.error('Failed to read file %s: %s', filename, e)
-
-
-def _parse_spectrum_dict_mzml(spectrum_dict: Dict) -> sus.MsmsSpectrum:
-    """
-    Parse the Pyteomics mzML spectrum dict.
-
-    Parameters
-    ----------
-    spectrum_dict : Dict
-        The Pyteomics mzML spectrum dict to be parsed.
-
-    Returns
-    -------
-    sus.MsmsSpectrum
-        The parsed spectrum.
-
-    Raises
-    ------
-    ValueError: The spectrum can't be parsed correctly:
-        - Unknown scan number.
-        - Not an MS/MS spectrum.
-        - Unknown precursor charge.
-    """
-    if int(spectrum_dict.get('ms level', -1)) != 2:
-        raise ValueError(f'Unsupported MS level {spectrum_dict["ms level"]}')
-
-    mz_array = spectrum_dict['m/z array']
-    intensity_array = spectrum_dict['intensity array']
-    retention_time = spectrum_dict['scanList']['scan'][0]['scan start time']
-
-    precursor = spectrum_dict['precursorList']['precursor'][0]
-    precursor_ion = precursor['selectedIonList']['selectedIon'][0]
-    precursor_mz = precursor_ion['selected ion m/z']
-    if 'charge state' in precursor_ion:
-        precursor_charge = int(precursor_ion['charge state'])
-    elif 'possible charge state' in precursor_ion:
-        precursor_charge = int(precursor_ion['possible charge state'])
-    else:
-        raise ValueError('Unknown precursor charge')
-
-    spectrum = sus.MsmsSpectrum(
-        spectrum_dict['id'], precursor_mz, precursor_charge, mz_array,
-        intensity_array, None, retention_time)
-    if 'scan=' in spectrum.identifier:
-        spectrum.scan = int(spectrum.identifier[
-                            spectrum.identifier.find('scan=') + len('scan='):])
-    return spectrum
 
 
 def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
@@ -174,57 +147,27 @@ def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
         try:
             for spectrum_dict in f_in:
                 if int(spectrum_dict.get('msLevel', -1)) == 2:
-                    try:
-                        spectrum = _parse_spectrum_dict_mzxml(spectrum_dict)
-                        spectrum.filename = os.path.splitext(
-                            os.path.basename(filename))[0]
-                        yield spectrum
-                    except ValueError as e:
-                        pass
-                        # logger.warning(f'Failed to read spectrum %s: %s',
-                        #                spectrum['id'], e)
+                    if 'precursorCharge' in spectrum_dict['precursorMz'][0]:
+                        precursor_charge = (spectrum_dict['precursorMz'][0]
+                                                         ['precursorCharge'])
+                    else:
+                        logger.warning('Unknown precursor charge, skipped '
+                                       'spectrum...')
+                        continue
+                    spectrum = sus.MsmsSpectrum(
+                        spectrum_dict['id'],
+                        spectrum_dict['precursorMz'][0]['precursorMz'],
+                        precursor_charge,
+                        spectrum_dict['m/z array'],
+                        spectrum_dict['intensity array'],
+                        None,
+                        spectrum_dict['retentionTime'])
+                    spectrum.scan = int(spectrum_dict['id'])
+                    spectrum.filename = os.path.splitext(
+                        os.path.basename(filename))[0]
+                    yield spectrum
         except LxmlError as e:
             logger.warning('Failed to read file %s: %s', filename, e)
-
-
-def _parse_spectrum_dict_mzxml(spectrum_dict: Dict) -> sus.MsmsSpectrum:
-    """
-    Parse the Pyteomics mzXML spectrum dict.
-
-    Parameters
-    ----------
-    spectrum_dict : Dict
-        The Pyteomics mzXML spectrum dict to be parsed.
-
-    Returns
-    -------
-    sus.MsmsSpectrum
-        The parsed spectrum.
-
-    Raises
-    ------
-    ValueError: The spectrum can't be parsed correctly:
-        - Not an MS/MS spectrum.
-        - Unknown precursor charge.
-    """
-    if int(spectrum_dict.get('msLevel', -1)) != 2:
-        raise ValueError(f'Unsupported MS level {spectrum_dict["msLevel"]}')
-
-    mz_array = spectrum_dict['m/z array']
-    intensity_array = spectrum_dict['intensity array']
-    retention_time = spectrum_dict['retentionTime']
-
-    precursor_mz = spectrum_dict['precursorMz'][0]['precursorMz']
-    if 'precursorCharge' in spectrum_dict['precursorMz'][0]:
-        precursor_charge = spectrum_dict['precursorMz'][0]['precursorCharge']
-    else:
-        raise ValueError('Unknown precursor charge')
-
-    spectrum = sus.MsmsSpectrum(
-        spectrum_dict['id'], precursor_mz, precursor_charge, mz_array,
-        intensity_array, None, retention_time)
-    spectrum.scan = int(spectrum_dict['id'])
-    return spectrum
 
 
 ###############################################################################
