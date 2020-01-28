@@ -60,6 +60,10 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
               help='Input PSM file (optional; supported formats: mzTab, '
                    'mzIdentML, JSON, MaxQuant; required for the '
                    '"best_spectrum" method)')
+@click.option('--higher_is_better', 'higher_is_better', type=bool,
+              default=True, show_default=True,
+              help='Flag indicating whether higher PSM scores are better or '
+                   'not')
 # Options for MostSimilarRepresentativeSelector.
 @click.option('--sim', 'sim', type=click.Choice(['dot']),
               default='dot', show_default=True,
@@ -95,7 +99,7 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
                    'size threshold (optional; required for the "bin" method)')
 def representative(filename_in: str, filename_out: str,
                    representative_method: str, min_cluster_size: int = 5,
-                   filename_psm: str = None,
+                   filename_psm: str = None, higher_is_better: bool = True,
                    sim: str = 'dot', fragment_mz_tolerance: float = 0.02,
                    min_mz: float = 100., max_mz: float = 2000.,
                    bin_size: float = 0.02, bin_peak_quorum: float = 0.25,
@@ -119,6 +123,8 @@ def representative(filename_in: str, filename_out: str,
     filename_psm : str
         Input PSM file (optional; supported formats: mzTab, mzIdentML, JSON,
         MaxQuant; required for the "best_spectrum" method).
+    higher_is_better : bool
+        Flag indicating whether higher PSM scores are better or not.
     sim : str
         Similarity measure to compare spectra to each other (optional; required
         for the "most_similar" method; options: "dot").
@@ -148,7 +154,8 @@ def representative(filename_in: str, filename_out: str,
                for spectrum in ms_io.read_spectra(filename_in)}
 
     if representative_method == 'best_spectrum':
-        rs = selector.BestSpectrumRepresentativeSelector(filename_psm)
+        rs = selector.BestSpectrumRepresentativeSelector(
+            filename_psm, higher_is_better)
         logger.info('Select cluster representatives using the best spectrum '
                     'method')
     elif representative_method == 'most_similar':

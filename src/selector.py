@@ -52,7 +52,7 @@ class BestSpectrumRepresentativeSelector(RepresentativeSelector):
     engine score.
     """
 
-    def __init__(self, filename_psms: str):
+    def __init__(self, filename_psms: str, higher_is_better: bool = True):
         """
         Initialize the selector with the search engine scores for all spectra
         to be considered.
@@ -65,6 +65,7 @@ class BestSpectrumRepresentativeSelector(RepresentativeSelector):
             file.
         """
         self.psms = ms_io.read_psms(filename_psms)
+        self.higher_is_better = higher_is_better
 
     def get_description(self):
         """
@@ -101,7 +102,8 @@ class BestSpectrumRepresentativeSelector(RepresentativeSelector):
         if len(scores) == 0:
             raise ValueError('No PSMs found for the given spectra')
         else:
-            return cluster_spectra[scores.idxmax()]
+            return cluster_spectra[scores.idxmax() if self.higher_is_better
+                                   else scores.idxmin()]
 
 
 def dot(spectrum1: sus.MsmsSpectrum, spectrum2: sus.MsmsSpectrum,
