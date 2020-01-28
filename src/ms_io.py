@@ -94,7 +94,8 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     with pyteomics.mzml.MzML(filename) as f_in:
         try:
-            for spectrum_dict in f_in:
+            for spectrum_dict in tqdm.tqdm(f_in, desc='Spectra read',
+                                           unit='spectra'):
                 if int(spectrum_dict.get('ms level', -1)) == 2:
                     precursor = spectrum_dict['precursorList']['precursor'][0]
                     precursor_ion = (precursor['selectedIonList']
@@ -145,7 +146,8 @@ def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     with pyteomics.mzxml.MzXML(filename) as f_in:
         try:
-            for spectrum_dict in f_in:
+            for spectrum_dict in tqdm.tqdm(f_in, desc='Spectra read',
+                                           unit='spectra'):
                 if int(spectrum_dict.get('msLevel', -1)) == 2:
                     if 'precursorCharge' in spectrum_dict['precursorMz'][0]:
                         precursor_charge = (spectrum_dict['precursorMz'][0]
