@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List
 
 import pandas as pd
 import pyteomics.mgf
+import pyteomics.mzid
 import pyteomics.mzml
 import pyteomics.mzxml
 import spectrum_utils.spectrum as sus
@@ -400,8 +401,10 @@ def read_psms(filename: str) -> pd.DataFrame:
     ext = os.path.splitext(filename.lower())[1]
     if ext == '.mztab':
         return _read_psms_mztab(filename)
-    elif ext == '.mzidentml':
+    elif ext == '.mzidentml' or ext == '.mzid':
         return _read_psms_mzidentml(filename)
+    elif ext == '.idxml':
+        return _read_psms_idxml(filename)
     elif ext == '.json':
         return _read_psms_json(filename)
     elif os.path.basename(filename) == 'msms.txt':
@@ -465,6 +468,40 @@ def _read_psms_mzidentml(filename: str) -> pd.DataFrame:
     ----------
     filename : str
         The mzIdentML file name.
+
+    Returns
+    -------
+    pd.DataFrame
+        A Pandas DataFrame with as rows the PSMs and as columns "sequence" and
+        "score", indexed by their spectrum reference in the form of
+        {filename}:scan:{scan}.
+    """
+    raise NotImplementedError('mzIdentML support is incomplete')
+    filenames, scan, sequence, score = [], [], [], []
+    for psm_dict in tqdm.tqdm(pyteomics.mzid.read(filename),
+                              desc='PSMs read', unit='PSMs'):
+        filenames.append(os.path.splitext(psm_dict['name'])[0])
+        scan.append(-1)     # FIXME
+        sequence.append(
+            psm_dict['SpectrumIdentificationItem'][0]['PeptideSequence'])
+        score.append(-1)    # FIXME
+    psms = pd.DataFrame({'filename': filenames, 'scan': scan,
+                         'sequence': sequence, 'score': score})
+    psms['spectra_ref'] = (psms['filename'] + ':scan:' +
+                           psms['scan'].astype(str))
+    return (psms[['spectra_ref', 'sequence', 'score']]
+            .drop_duplicates('spectra_ref')
+            .set_index('spectra_ref'))
+
+
+def _read_psms_idxml(filename: str) -> pd.DataFrame:
+    """
+    Read idXML spectrum identifications.
+
+    Parameters
+    ----------
+    filename : str
+        The idXML file name.
 
     Returns
     -------
