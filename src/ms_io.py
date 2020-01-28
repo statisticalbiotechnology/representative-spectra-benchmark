@@ -4,6 +4,7 @@ import os
 from typing import Dict, Iterable, List
 
 import pandas as pd
+import pyopenms
 import pyteomics.mgf
 import pyteomics.mzid
 import pyteomics.mzml
@@ -477,16 +478,16 @@ def _read_psms_mzidentml(filename: str) -> pd.DataFrame:
         {filename}:scan:{scan}.
     """
     raise NotImplementedError('mzIdentML support is incomplete')
-    filenames, scan, sequence, score = [], [], [], []
+    filenames, scan, sequences, score = [], [], [], []
     for psm_dict in tqdm.tqdm(pyteomics.mzid.read(filename),
                               desc='PSMs read', unit='PSMs'):
         filenames.append(os.path.splitext(psm_dict['name'])[0])
         scan.append(-1)     # FIXME
-        sequence.append(
+        sequences.append(
             psm_dict['SpectrumIdentificationItem'][0]['PeptideSequence'])
         score.append(-1)    # FIXME
     psms = pd.DataFrame({'filename': filenames, 'scan': scan,
-                         'sequence': sequence, 'score': score})
+                         'sequence': sequences, 'score': score})
     psms['spectra_ref'] = (psms['filename'] + ':scan:' +
                            psms['scan'].astype(str))
     return (psms[['spectra_ref', 'sequence', 'score']]
@@ -510,7 +511,22 @@ def _read_psms_idxml(filename: str) -> pd.DataFrame:
         "score", indexed by their spectrum reference in the form of
         {filename}:scan:{scan}.
     """
-    raise NotImplementedError
+    protein_ids, psms, scans, sequences, scores = [], [], [], [], []
+    pyopenms.IdXMLFile().load(filename, protein_ids, psms)
+    peak_filename = os.path.splitext(os.path.basename(
+        protein_ids[0].getMetaValue('spectra_data')[0].decode()))[0]
+    for psm in tqdm.tqdm(psms, desc='PSMs read', unit='PSMs'):
+        spectrum_index = psm.getMetaValue('spectrum_reference').decode()
+        scans.append(int(spectrum_index[spectrum_index.find('=') + 1:]))
+        sequences.append(psm.getHits()[0].getSequence().toString().decode())
+        scores.append(psm.getHits()[0].getScore())
+    psms = pd.DataFrame({'filename': peak_filename, 'scan': scans,
+                         'sequence': sequences, 'score': scores})
+    psms['spectra_ref'] = (psms['filename'] + ':scan:' +
+                           psms['scan'].astype(str))
+    return (psms[['spectra_ref', 'sequence', 'score']]
+            .drop_duplicates('spectra_ref')
+            .set_index('spectra_ref'))
 
 
 def _read_psms_json(filename: str) -> pd.DataFrame:
