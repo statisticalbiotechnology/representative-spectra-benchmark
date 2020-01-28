@@ -219,7 +219,8 @@ def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
         A dictionary with as keys the spectrum identifiers (format
         "{filename}:scan:{scan}") and as value the cluster index.
     """
-    with open(filename) as f_in:
+    with open(filename) as f_in, tqdm.tqdm(
+            desc='Cluster assignments read', unit='spectra') as progress_bar:
         clusters, cluster_i = {}, 0
         for line in f_in:
             if not line.strip():
@@ -228,6 +229,7 @@ def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
                 fn, scan, *_ = line.split('\t')
                 clusters[f'{os.path.splitext(fn)[0]}:scan:{scan}'] = \
                     cluster_i
+                progress_bar.update(1)
         return clusters
 
 
@@ -246,7 +248,8 @@ def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
         A dictionary with as keys the spectrum identifiers (format
         "{filename}:scan:{scan}") and as value the cluster index.
     """
-    with open(filename) as f_in:
+    with open(filename) as f_in, tqdm.tqdm(
+            desc='Cluster assignments read', unit='spectra') as progress_bar:
         clusters, cluster_i = {}, 0
         for line in f_in:
             if line.startswith('=Cluster='):
@@ -257,6 +260,7 @@ def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
                             line.find('#title')]
                 clusters[f'{os.path.splitext(fn)[0]}:scan:{scan}'] = \
                     cluster_i
+                progress_bar.update(1)
         return clusters
 
 
@@ -276,7 +280,8 @@ def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
         "{filename}:scan:{scan}") and as value the cluster index.
     """
     logger.warning('MS-Cluster output reading is not fully supported')
-    with open(filename) as f_in:
+    with open(filename) as f_in, tqdm.tqdm(
+            desc='Cluster assignments read', unit='spectra') as progress_bar:
         clusters, cluster_i = {}, 0
         for line in f_in:
             if line.startswith('mscluster'):
@@ -284,6 +289,7 @@ def _read_clusters_mscluster(filename: str) -> Dict[str, int]:
             elif not line.isspace():
                 # FIXME: Missing file information for MS-Cluster output?
                 clusters[int(line.split('\t')[2])] = cluster_i
+                progress_bar.update(1)
         return clusters
 
 
