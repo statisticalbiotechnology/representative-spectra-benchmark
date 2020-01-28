@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Dict, Iterable, List
+from typing import Any, Dict, Iterable, List
 
 import pandas as pd
 import pyopenms
@@ -577,18 +577,16 @@ def _read_psms_maxquant(filename: str) -> pd.DataFrame:
 ###############################################################################
 
 
-def write_distance_dict_to_json(filename: str, distances: Dict) -> None:
+def write_json(filename: str, obj: Any) -> None:
     """
-    Write the given distance dict to a JSON file.
+    Export the given object to a JSON file.
 
     Parameters
     ----------
     filename : str
-        The file name of the JSON output file.
-    distances : Dict
-        A dictionary where the keys are clusters and the values the distances.
+        Output JSON file name.
+    obj : Any
+        Object to be serialized to a JSON file.
     """
-    # os.makedirs(RESULTFOLDER, exists_ok=True)
-    # path = os.path.join(RESULTFOLDER, filename)
-    with open(filename, 'w') as outfile:
-        json.dump(distances, outfile, indent=4, sort_keys=True)
+    with open(filename, 'w') as f_out:
+        json.dump(obj, f_out)
