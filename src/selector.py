@@ -3,6 +3,7 @@ import copy
 import math
 from typing import Dict
 
+import numba as nb
 import numpy as np
 import pyopenms
 import spectrum_utils.spectrum as sus
@@ -125,15 +126,67 @@ def dot(spectrum1: sus.MsmsSpectrum, spectrum2: sus.MsmsSpectrum,
     float
         The dot product similarity between the given spectra.
     """
-    spectrum1 = copy.copy(spectrum1).scale_intensity(max_intensity=1)
-    spec1 = pyopenms.MSSpectrum()
-    spec1.set_peaks([spectrum1.mz, spectrum1.intensity])
-    spectrum2 = copy.copy(spectrum2).scale_intensity(max_intensity=1)
-    spec2 = pyopenms.MSSpectrum()
-    spec2.set_peaks([spectrum2.mz, spectrum2.intensity])
-    # Third parameter of xCorrelationPrescore is bin size in Da.
-    return pyopenms.XQuestScores().xCorrelationPrescore(
-        spec1, spec2, fragment_mz_tolerance)
+    return _dot(spectrum1.mz, _norm_intensity(np.copy(spectrum1.intensity)),
+                spectrum2.mz, _norm_intensity(np.copy(spectrum2.intensity)),
+                fragment_mz_tolerance)
+
+
+@nb.njit
+def _norm_intensity(spectrum_intensity: np.ndarray) -> np.ndarray:
+    """
+    Normalize spectrum peak intensities.
+
+    Parameters
+    ----------
+    spectrum_intensity : np.ndarray
+        The spectrum peak intensities to be normalized.
+
+    Returns
+    -------
+    np.ndarray
+        The normalized peak intensities.
+    """
+    return spectrum_intensity / np.linalg.norm(spectrum_intensity)
+
+
+@nb.njit
+def _dot(mz: np.ndarray, intensity: np.ndarray, mz_other: np.ndarray,
+         intensity_other: np.ndarray, fragment_mz_tol: float) -> float:
+    """
+    Compute the dot product between the given spectra.
+
+    Note: Spectrum intensities should be normalized prior to computing the dot
+    product.
+
+    Parameters
+    ----------
+    mz : np.ndarray
+        The first spectrum's m/z values.
+    intensity : np.ndarray
+        The first spectrum's intensity values.
+    mz_other : np.ndarray
+        The second spectrum's m/z values.
+    intensity_other : np.ndarray
+        The second spectrum's intensity values.
+    fragment_mz_tol : float
+        The fragment m/z tolerance used to match peaks in both spectra with
+        each other.
+
+    Returns
+    -------
+    float
+        The dot product between both spectra.
+    """
+    fragment_i, fragment_other_i, score = 0, 0, 0.
+    for fragment_i in range(len(mz)):
+        while (fragment_other_i < len(mz_other) - 1 and
+               mz_other[fragment_other_i] < mz[fragment_i] - fragment_mz_tol):
+            fragment_other_i += 1
+        if (abs(mz[fragment_i] - mz_other[fragment_other_i]) <= fragment_mz_tol
+                and fragment_other_i < len(mz_other)):
+            score += intensity[fragment_i] * intensity_other[fragment_other_i]
+            fragment_other_i += 1
+    return score
 
 
 class MostSimilarRepresentativeSelector(RepresentativeSelector):
