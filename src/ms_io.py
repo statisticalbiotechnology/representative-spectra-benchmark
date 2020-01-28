@@ -445,13 +445,16 @@ def _read_psms_mztab(filename: str) -> pd.DataFrame:
 
     psms = (pd.read_csv(filename, sep='\t', header=skiplines, nrows=nrows + 1)
             .rename(columns={'search_engine_score[1]': 'score'}))
-    run = psms['spectra_ref'].str.slice(stop=psms['spectra_ref'].str.find(':'))
-    scan = psms['spectra_ref'].str.slice(psms['spectra_ref'].str.rfind('='))
+    if not all(psms['spectra_ref'].str.contains('scan')):
+        raise ValueError('Spectrum references with scan information required')
+    run = pd.Series([spectra_ref[:spectra_ref.find(':')]
+                     for spectra_ref in psms['spectra_ref']])
+    scan = pd.Series([spectra_ref[spectra_ref.find('=') + 1:]
+                      for spectra_ref in psms['spectra_ref']])
     psms['spectra_ref'] = run.map(run_names) + ':scan:' + scan
     return (psms[['spectra_ref', 'sequence', 'score']]
             .drop_duplicates('spectra_ref')
-            .set_index('spectra_ref')
-            .sort_index())
+            .set_index('spectra_ref'))
 
 
 def _read_psms_mzidentml(filename: str) -> pd.DataFrame:
