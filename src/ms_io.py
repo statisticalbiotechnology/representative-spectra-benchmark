@@ -518,8 +518,7 @@ def _read_psms_maxquant(filename: str) -> pd.DataFrame:
                            psms['Scan number'].astype(str))
     return (psms[['spectra_ref', 'sequence', 'score']]
             .drop_duplicates('spectra_ref')
-            .set_index('spectra_ref')
-            .sort_index())
+            .set_index('spectra_ref'))
 
 
 ###############################################################################
