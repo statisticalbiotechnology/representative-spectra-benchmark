@@ -38,24 +38,25 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
 
 
 @click.command('representative',
-               help='Export representative spectra for each cluster to MGF',
-               no_args_is_help=True)
-@click.argument('filename_in', type=click.Path(exists=True, dir_okay=False),
-                help='Input MGF file containing cluster assignments')
-@click.argument('filename_out', type=click.Path(dir_okay=False),
-                help='Output MGF file containing representative spectra for '
-                     'each cluster')
-@click.argument('representative_method',
-                type=click.Choice(['most_similar', 'best_spectrum', 'bin']),
-                help='Method used to select the representative spectrum for '
-                     'each cluster (options: "best_spectrum", "most_similar", '
-                     '"bin")')
-@click.option('--min_cluster_size', type=int,
+               help='Export representative spectra for each cluster to MGF')
+@click.option('--filename_in', 'filename_in',
+              type=click.Path(exists=True, dir_okay=False),
+              help='Input MGF file containing cluster assignments')
+@click.option('--filename_out', 'filename_out',
+              type=click.Path(dir_okay=False),
+              help='Output MGF file containing representative spectra for each'
+                   ' cluster')
+@click.option('--representative_method', 'representative_method',
+              type=click.Choice(['most_similar', 'best_spectrum', 'bin']),
+              help='Method used to select the representative spectrum for each'
+                   ' cluster (options: "best_spectrum", "most_similar", '
+                   '"bin")')
+@click.option('--min_cluster_size', 'min_cluster_size', type=int,
               default=5, show_default=True,
               help='Only consider clusters consisting of a minimum number of '
                    'spectra (optional)')
 # Options for BestSpectrumRepresentativeSelector.
-@click.option('--psm', 'filename_psm',
+@click.option('--filename_psm', 'filename_psm',
               type=click.Path(exists=True, dir_okay=False),
               help='Input PSM file (optional; supported formats: mzTab, '
                    'mzIdentML, JSON, MaxQuant; required for the '
@@ -70,7 +71,7 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
               help='Similarity measure to compare spectra to each other '
                    '(optional; required for the "most_similar" method; '
                    'options: "dot")')
-@click.option('--fragment_mz_tolerance', type=float,
+@click.option('--fragment_mz_tolerance', 'fragment_mz_tolerance', type=float,
               default=0.02, show_default=True,
               help='Fragment m/z tolerance used during spectrum comparison '
                    '(optional; required for the "most_similar" method)')
