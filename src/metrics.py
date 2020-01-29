@@ -1,14 +1,9 @@
-import sys
+import copy
 from typing import Iterable
 
 import numba as nb
 import numpy as np
 import spectrum_utils.spectrum as sus
-from pyteomics import parser
-
-
-mz_unit = 1.000508  # Space in Th between fragments
-mz_space = mz_unit * .005  # Resolution approximately 0.005 Da
 
 
 def dot(spectrum1: sus.MsmsSpectrum, spectrum2: sus.MsmsSpectrum,
@@ -119,30 +114,38 @@ def avg_dot(representative: sus.MsmsSpectrum,
                     for spectrum in cluster_spectra])
 
 
-def fraction_of_by(representative_spectrum, cluster_members=[]):
-    if not representative_spectrum.peptide:
-        return 0.0
-    fragment_tol_mass = 0.005
-    fragment_tol_mode = 'Da'
-    spectrum = (representative_spectrum.remove_precursor_peak(fragment_tol_mass, fragment_tol_mode)
-                .annotate_peptide_fragments(fragment_tol_mass, fragment_tol_mode,
-                                            ion_types='by'))
-    current, by_current = 0., 0.
-    for ix in range(len(spectrum.intensity)):
-        current += spectrum.intensity[ix]
-        if spectrum.annotation[ix] is not None:
-            by_current += spectrum.intensity[ix]
-    if current > 0.:
-        return by_current / current
-    else:
-        return 0.0
+def fraction_by(representative: sus.MsmsSpectrum,
+                cluster_spectra: Iterable[sus.MsmsSpectrum],
+                fragment_mz_tolerance: float) -> float:
+    """
+    Compute the fraction of intensity that is explained by the b and y-ions of
+    the representative spectrum.
 
+    This will be 0 if no peptide sequence is associated with the representative
+    spectrum.
 
-def fraction_of_by_seq(peptide_seq, precursor_mz, precursor_charge, mz, intensity):
-    if not parser.fast_valid(peptide_seq):
-        print("Invalid peptide sequence encountered", file=sys.stderr)
-        return 0.0
-    spec = sus.MsmsSpectrum(
-        peptide_seq, precursor_mz=precursor_mz, precursor_charge=precursor_charge, mz=mz, intensity=intensity,
-        peptide=peptide_seq)
-    return fraction_of_by(spec)
+    Parameters
+    ----------
+    representative : sus.MsmsSpectrum
+        The cluster representative spectrum.
+    cluster_spectra : Iterable[sus.MsmsSpectrum]
+        The cluster member spectra. Ignored.
+    fragment_mz_tolerance : float
+        Fragment m/z tolerance used to annotate the peaks of the representative
+        spectrum.
+
+    Returns
+    -------
+    float
+        The fraction of intensity that is explained by the b and y-ions of the
+        representative spectrum.
+    """
+    if representative.peptide is None:
+        return 0
+    representative = (copy.copy(representative)
+                      .remove_precursor_peak(fragment_mz_tolerance, 'Da')
+                      .annotate_peptide_fragments(fragment_mz_tolerance, 'Da'))
+    annotated_peaks = [i for i, annot in enumerate(representative.annotation)
+                       if annot is not None]
+    return (representative.intensity[annotated_peaks].sum()
+            / representative.intensity.sum())
