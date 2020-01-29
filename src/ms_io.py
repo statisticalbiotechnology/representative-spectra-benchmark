@@ -1,13 +1,13 @@
-import json
 import logging
 import os
-from typing import Any, Dict, Iterable, List
+from typing import Dict, Iterable, List
 
 import pandas as pd
 import pyopenms
 import pyteomics.mgf
 import pyteomics.mzid
 import pyteomics.mzml
+import pyteomics.mztab
 import pyteomics.mzxml
 import spectrum_utils.spectrum as sus
 import tqdm
@@ -434,20 +434,12 @@ def _read_psms_mztab(filename: str) -> pd.DataFrame:
         "score", indexed by their spectrum reference in the form of
         {filename}:scan:{scan}.
     """
-    run_names, skiplines, nrows = {}, 0, 0
-    with open(filename) as f_in:
-        for i, line in enumerate(f_in):
-            if line.startswith('MTD') and 'ms_run' in line:
-                run_id = line[line.find('ms_run['):line.find('-location')]
-                run_name = os.path.splitext(os.path.basename(
-                    line.rsplit('\t', 1)[1]))[0]
-                run_names[run_id] = run_name
-            elif line.startswith('PSH'):
-                skiplines = i
-            elif line.startswith('PSM'):
-                nrows += 1
-
-    psms = (pd.read_csv(filename, sep='\t', header=skiplines, nrows=nrows + 1)
+    mztab = pyteomics.mztab.MzTab(filename)
+    run_names = {key[key.find('ms_run['):key.find('-location')]:
+                     os.path.splitext(os.path.basename(value))[0]
+                 for key, value in mztab.metadata.items()
+                 if key.startswith('ms_run') and key.endswith('location')}
+    psms = (mztab.spectrum_match_table
             .rename(columns={'search_engine_score[1]': 'score'}))
     if not all(psms['spectra_ref'].str.contains('scan')):
         raise ValueError('Spectrum references with scan information required')
@@ -455,7 +447,7 @@ def _read_psms_mztab(filename: str) -> pd.DataFrame:
                      for spectra_ref in psms['spectra_ref']])
     scan = pd.Series([spectra_ref[spectra_ref.find('=') + 1:]
                       for spectra_ref in psms['spectra_ref']])
-    psms['spectra_ref'] = run.map(run_names) + ':scan:' + scan
+    psms['spectra_ref'] = (run.map(run_names) + ':scan:' + scan).values
     return (psms[['spectra_ref', 'sequence', 'score']]
             .drop_duplicates('spectra_ref')
             .set_index('spectra_ref'))
