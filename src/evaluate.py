@@ -1,3 +1,4 @@
+import functools
 import logging
 
 import click
@@ -27,8 +28,13 @@ logger = logging.getLogger('cluster_representative')
 @click.option('--measure', 'measure', type=click.Choice(['avg_dot']),
               help='Measure used to evaluate cluster representatives (options:'
                    ' "avg_dot")')
+@click.option('--fragment_mz_tolerance', 'fragment_mz_tolerance', type=float,
+              default=0.02, show_default=True,
+              help='Fragment m/z tolerance used during spectrum comparison '
+                   '(optional; required for the "avg_dot" method)')
 def evaluate(filename_spectra: str, filename_representatives: str,
-             filename_out: str, metric: str = 'avg_dot') -> None:
+             filename_out: str, metric: str = 'avg_dot',
+             fragment_mz_tolerance: float = 0.02) -> None:
     """
     Evaluate how well representative spectra represent cluster members.
 
@@ -43,9 +49,13 @@ def evaluate(filename_spectra: str, filename_representatives: str,
         Output JSON file containing representative scores.
     metric : str
         Measure used to evaluate cluster representatives (options: "avg_dot").
+    fragment_mz_tolerance : float
+        Fragment m/z tolerance used during spectrum comparison (optional;
+        required for the "avg_dot" method).
     """
     if metric == 'avg_dot':
-        metric_func = metrics.average_cos_dist
+        metric_func = functools.partial(
+            metrics.avg_dot, fragment_mz_tolerance=fragment_mz_tolerance)
     else:
         raise ValueError('Unknown metric specified: %s', metric)
 
