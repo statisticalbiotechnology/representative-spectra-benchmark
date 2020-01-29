@@ -2,6 +2,7 @@ import functools
 import logging
 
 import click
+import pandas as pd
 import tqdm
 
 import metrics
@@ -24,7 +25,7 @@ logger = logging.getLogger('cluster_representative')
               help='Input MGF file containing cluster representatives')
 @click.option('--filename_out', 'filename_out',
               type=click.Path(dir_okay=False),
-              help='Output JSON file containing representative scores')
+              help='Output CSV file containing representative scores')
 @click.option('--measure', 'measure',
               type=click.Choice(['avg_dot', 'fraction_by']),
               help='Measure used to evaluate cluster representatives (options:'
@@ -92,17 +93,19 @@ def evaluate(filename_spectra: str, filename_representatives: str,
         for spectrum in ms_io.read_spectra(filename_representatives)}
 
     logger.info('Evaluate cluster representatives')
-    representative_scores = {}
+    cluster_keys, scores = [], []
     for cluster_key, cluster_spectra in tqdm.tqdm(
             representative.get_cluster_spectra(spectra),
             desc='Clusters processed', unit='clusters'):
         if cluster_key in representatives:
-            representative_scores[cluster_key] = metric_func(
-                representatives[cluster_key], cluster_spectra.values())
+            cluster_keys.append(cluster_key)
+            scores.append(metric_func(
+                representatives[cluster_key], cluster_spectra.values()))
 
     logger.info('Export representative evaluation scores to JSON file %s',
                 filename_out)
-    ms_io.write_json(filename_out, representative_scores)
+    (pd.DataFrame({'cluster': cluster_keys, 'score': scores})
+     .to_csv(filename_out, index=False))
 
 
 if __name__ == '__main__':

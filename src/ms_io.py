@@ -572,21 +572,3 @@ def _read_psms_maxquant(filename: str) -> pd.DataFrame:
     return (psms[['spectra_ref', 'sequence', 'score']]
             .drop_duplicates('spectra_ref')
             .set_index('spectra_ref'))
-
-
-###############################################################################
-
-
-def write_json(filename: str, obj: Any) -> None:
-    """
-    Export the given object to a JSON file.
-
-    Parameters
-    ----------
-    filename : str
-        Output JSON file name.
-    obj : Any
-        Object to be serialized to a JSON file.
-    """
-    with open(filename, 'w') as f_out:
-        json.dump(obj, f_out)
