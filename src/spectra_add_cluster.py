@@ -34,7 +34,7 @@ def spectra_add_cluster(filename_spectra: str,
 
     logger.info('Read clusters from cluster file %s', filename_cluster[0])
     clusters = ms_io.read_clusters(
-        filename_cluster[0], filename_cluster[1].lower())
+        filename_cluster[0], filename_cluster[1].lower(), list(spectra.keys()))
 
     for spectrum in spectra.values():
         spectrum_key = f'{spectrum.filename}:scan:{spectrum.scan}'
