@@ -60,30 +60,6 @@ process peptideIdentification {
 }
 
 /**
- * Merge Identification files from multiple RAW files.
- */
-process idMerger {
-
-   container 'mwalzer/openms-batteries-included:V2.4.0_proteomic_lfq_2'
-   publishDir "${params.result_folder}", mode: 'copy', overwrite: true
-
-   memory { 16.GB * task.attempt }
-   errorStrategy 'retry'
-
-   input:
-   file(input_files) from id_xmls.collect()
-
-   output:
-   file "*.idXML" into merged_xmls
-
-   script:
-   """
-   IDMerger -in ${(input_files as List).join(" ")} -out merged-global-index.idXML
-   """
-
-}
-
-/**
  * This function is needed to compute the PSM features
  */
 process psm_features{
@@ -95,7 +71,7 @@ process psm_features{
    errorStrategy 'retry'
 
    input:
-   file id_xml from merged_xmls
+   file id_xml from id_xmls
 
    output:
    file "*.idXML" into psm_features_xmls
@@ -174,7 +150,7 @@ process peptideFDRCompute {
 
    script:
    """
-   FalseDiscoveryRate -ini "${fdr_config}" -in ${index_xml} -out ${index_xml.baseName}-fdr.idXML
+   FalseDiscoveryRate -ini ${fdr_config} -in ${index_xml} -out ${index_xml.baseName}-fdr.idXML
    """
 }
 
@@ -203,6 +179,17 @@ process peptideFDRFilter {
    """
 }
 
+(mz_mls) = Channel.fromPath("${params.mzml_folder}/*.mzML").map { file ->
+		(whole_name, index) = (file =~ /.*\/(.*)\.mzML/)[0]
+		[index, file]
+	}.into(1)
+
+phospho_map = phospho_xmls.map { file ->
+		(whole_name, index) = (file =~ /.*\/(.*)\.idXML/)[0]
+		[index, file]
+	}.combine(mz_mls, by: 0)
+
+phospho_map.view()
 
 /**
  * IDFilter This step filter the peptides using the FDR computation
@@ -219,7 +206,7 @@ process phosphoLocalization {
    errorStrategy 'retry'
 
    input:
-   file fdr_xml from phospho_xmls
+   set val(raw_name), file(idxml), file(mzml) from phospho_map
    file phospho_config
 
    output:
@@ -227,7 +214,7 @@ process phosphoLocalization {
 
    script:
    """
-   LuciphorAdapter -ini "${phospho_config}" -in ${fdr_xml} -out ${fdr_xml.baseName}-phospho.idXML
+   LuciphorAdapter -ini ${phospho_config} -id ${idxml} -in ${mzml} -out ${fdr_xml.baseName}-phospho.idXML
    """
 }
 
