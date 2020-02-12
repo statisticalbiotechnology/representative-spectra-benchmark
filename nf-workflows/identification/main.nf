@@ -206,7 +206,7 @@ process phosphoLocalization {
    errorStrategy 'retry'
 
    input:
-   set val(raw_name), file(idxml), file(mzml) from phospho_map
+   set file(idxml), file(mzml) from phospho_map
    file phospho_config
 
    output:
