@@ -12,16 +12,16 @@ logger = logging.getLogger('cluster_representative')
 @click.command('spectra_add_cluster',
                help='Export spectra to an MGF file containing cluster '
                     'assignments')
-@click.option('--spectra', '-s', 'filename_spectra',
-              help='Input spectrum file (supported file formats:    MGF, mzML, '
+@click.option('--spectra', 'filename_spectra',
+              help='Input spectrum file (supported file formats: MGF, mzML, '
                    'mzXML)',
               required=True)
-@click.option('--cluster', '-c', 'filename_cluster', nargs=2,
+@click.option('--cluster', 'filename_cluster', nargs=2,
               help='Input cluster assignments and cluster type (supported '
                    'clustering formats: MaRaCluster, spectra-cluster, '
                    'MS-Cluster)',
               required=True)
-@click.option('--out', '-o', 'filename_out',
+@click.option('--out', 'filename_out',
               help='Output MGF file containing the updated spectra with '
                    'associated cluster assignments',
               required=True)
