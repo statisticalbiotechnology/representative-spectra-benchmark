@@ -509,7 +509,8 @@ def _read_psms_idxml(filename: str) -> pd.DataFrame:
         protein_ids[0].getMetaValue('spectra_data')[0].decode()))[0]
     for psm in tqdm.tqdm(psms, desc='PSMs read', unit='PSMs'):
         spectrum_index = psm.getMetaValue('spectrum_reference').decode()
-        scans.append(int(spectrum_index[spectrum_index.find('=') + 1:]))
+        scans.append(
+            int(spectrum_index[spectrum_index.find('scan=') + len('scan='):]))
         sequences.append(psm.getHits()[0].getSequence().toString().decode())
         scores.append(psm.getHits()[0].getScore())
     psms = pd.DataFrame({'filename': peak_filename, 'scan': scans,
