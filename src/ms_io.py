@@ -73,8 +73,8 @@ def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
             spectrum_dict['params'].get('rtinseconds'))
         spectrum.filename = spectrum_dict['params'].get(
             'filename', os.path.splitext(os.path.basename(filename))[0])
-        if 'scans' in spectrum_dict['params']:
-            spectrum.scan = spectrum_dict['params']['scans']
+        if 'scan' in spectrum_dict['params']:
+            spectrum.scan = spectrum_dict['params']['scan']
         if 'cluster' in spectrum_dict['params']:
             spectrum.cluster = spectrum_dict['params']['cluster']
         yield spectrum
@@ -337,7 +337,7 @@ def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
     """
     Write the given spectra to a peak file.
 
-    Supported formats: MGF, mzML, mzXML.
+    Supported formats: MGF, mzML.
 
     Parameters
     ----------
@@ -348,9 +348,9 @@ def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
     """
     ext = os.path.splitext(filename.lower())[1]
     if ext == '.mgf':
-        yield from _write_spectra_mgf(filename, spectra)
+        _write_spectra_mgf(filename, spectra)
     elif ext == '.mzml':
-        yield from _write_spectra_mzml(filename, spectra)
+        _write_spectra_mzml(filename, spectra)
     else:
         logger.error('Unsupported peak file format (supported formats: MGF, '
                      'mzML)')
@@ -398,7 +398,7 @@ def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) -> Iterable[Dict]:
         if hasattr(spectrum, 'filename'):
             params['filename'] = spectrum.filename
         if hasattr(spectrum, 'scan'):
-            params['scans'] = spectrum.scan
+            params['scan'] = spectrum.scan
         if hasattr(spectrum, 'cluster'):
             params['cluster'] = spectrum.cluster
         yield {'params': params,
