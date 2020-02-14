@@ -22,8 +22,8 @@ logger = logging.getLogger('cluster_representative')
                    'MS-Cluster)',
               required=True)
 @click.option('--out', 'filename_out',
-              help='Output MGF file containing the updated spectra with '
-                   'associated cluster assignments',
+              help='Output mzML or MGF file containing the updated spectra '
+                   'with associated cluster assignments',
               required=True)
 def spectra_add_cluster(filename_spectra: str,
                         filename_cluster: Tuple[str, str],
@@ -43,8 +43,8 @@ def spectra_add_cluster(filename_spectra: str,
         else:
             logger.warning('No cluster assignment found for spectrum %s',
                            spectrum.identifier)
-    logging.info('Export the spectra including cluster assignments to MGF file'
-                 ' %s', filename_out)
+    logging.info('Export the spectra including cluster assignments to spectrum'
+                 ' file %s', filename_out)
     # Make sure the exported spectra are grouped by their clusters.
     ms_io.write_spectra(filename_out, sorted(
         spectra.values(), key=lambda spectrum: (spectrum.cluster,

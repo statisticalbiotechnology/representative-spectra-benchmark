@@ -335,6 +335,32 @@ def _convert_clusters_mscluster(clusters: Dict[int, int],
 
 def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
     """
+    Write the given spectra to a peak file.
+
+    Supported formats: MGF, mzML, mzXML.
+
+    Parameters
+    ----------
+    filename : str
+        The file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the peak file.
+    """
+    ext = os.path.splitext(filename.lower())[1]
+    if ext == '.mgf':
+        yield from _write_spectra_mgf(filename, spectra)
+    elif ext == '.mzml':
+        yield from _write_spectra_mzml(filename, spectra)
+    else:
+        logger.error('Unsupported peak file format (supported formats: MGF, '
+                     'mzML)')
+        raise ValueError('Unsupported peak file format (supported formats: '
+                         'MGF, mzML)')
+
+
+def _write_spectra_mgf(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
+        -> None:
+    """
     Write the given spectra to an MGF file.
 
     Parameters
@@ -378,6 +404,21 @@ def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) -> Iterable[Dict]:
         yield {'params': params,
                'm/z array': spectrum.mz,
                'intensity array': spectrum.intensity}
+
+
+def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
+        -> None:
+    """
+    Write the given spectra to an mzML file.
+
+    Parameters
+    ----------
+    filename : str
+        The mzML file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the mzML file.
+    """
+    raise NotImplementedError('mzML export is not supported yet')
 
 
 ###############################################################################
