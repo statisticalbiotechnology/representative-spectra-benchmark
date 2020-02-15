@@ -85,19 +85,20 @@ def evaluate(filename_spectra: str, filename_representatives: str,
                 filename_spectra)
     spectra = {f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
                for spectrum in ms_io.read_spectra(filename_spectra)}
-    if measures == 'fraction_by':
-        logger.info('Assign peptide identifications from file %s to the '
-                    'cluster representatives', filename_psm)
-        psms = ms_io.read_psms(filename_psm)
-        for spectra_ref, sequence in psms['sequence'].items():
-            if spectra_ref in spectra:
-                spectra[spectra_ref].peptide = sequence
 
     logger.info('Read cluster representatives from spectrum file %s',
                 filename_representatives)
     representatives = {
         spectrum.cluster: spectrum
         for spectrum in ms_io.read_spectra(filename_representatives)}
+    if 'fraction_by' in measures:
+        logger.info('Assign peptide identifications from file %s to the '
+                    'cluster representatives', filename_psm)
+        psms = ms_io.read_psms(filename_psm)
+        for spectra_ref, sequence in tqdm.tqdm(
+                psms['sequence'].items(), desc='PSMs assigned', unit='PSMs'):
+            if spectra_ref in representatives:
+                representatives[spectra_ref].peptide = sequence
 
     logger.info('Evaluate cluster representatives')
     cluster_keys = []
