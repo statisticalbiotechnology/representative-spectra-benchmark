@@ -38,14 +38,14 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
 
 
 @click.command('representative',
-               help='Export representative spectra for each cluster to MGF')
+               help='Export representative spectra for each cluster')
 @click.option('--filename_in', 'filename_in',
               type=click.Path(exists=True, dir_okay=False),
-              help='Input MGF file containing cluster assignments')
+              help='Input spectrum file containing cluster assignments')
 @click.option('--filename_out', 'filename_out',
               type=click.Path(dir_okay=False),
-              help='Output MGF file containing representative spectra for each'
-                   ' cluster')
+              help='Output spectrum file containing representative spectra for'
+                   ' each cluster')
 @click.option('--representative_method', 'representative_method',
               type=click.Choice(['most_similar', 'best_spectrum', 'bin']),
               help='Method used to select the representative spectrum for each'
@@ -61,7 +61,7 @@ def get_cluster_spectra(spectra: Dict[str, sus.MsmsSpectrum]) \
               help='Input PSM file (optional; supported formats: mzTab, '
                    'mzIdentML, JSON, MaxQuant; required for the '
                    '"best_spectrum" method)')
-@click.option('--higher_is_better', 'higher_is_better', type=bool,
+@click.option('--higher_is_better/--lower_is_better', 'higher_is_better',
               default=True, show_default=True,
               help='Flag indicating whether higher PSM scores are better or '
                    'not')
@@ -112,9 +112,9 @@ def representative(filename_in: str, filename_out: str,
     Parameters
     ----------
     filename_in : str
-        Input MGF file containing cluster assignments.
+        Input spectrum file containing cluster assignments.
     filename_out : str
-        Output MGF file containing representative spectra for each cluster.
+        Output spectrum file containing representative spectra for each cluster.
     representative_method : str
         Method used to select the representative spectrum for each cluster
         (options: "best_spectrum", "most_similar", "bin").
@@ -187,7 +187,7 @@ def representative(filename_in: str, filename_out: str,
             #                cluster_key)
             pass
 
-    logger.info('Export %d cluster representatives to MGF file %s',
+    logger.info('Export %d cluster representatives to spectrum file %s',
                 len(cluster_representatives), filename_out)
     ms_io.write_spectra(filename_out, cluster_representatives)
 

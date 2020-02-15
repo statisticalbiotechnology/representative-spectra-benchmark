@@ -19,11 +19,11 @@ logger = logging.getLogger('cluster_representative')
                     'cluster members')
 @click.option('--filename_spectra', 'filename_spectra',
               type=click.Path(dir_okay=False),
-              help='Input MGF file containing original spectra (including '
-                   'cluster assignments)')
+              help='Input spectrum file containing original spectra'
+                   '(including cluster assignments)')
 @click.option('--filename_representatives', 'filename_representatives',
               type=click.Path(dir_okay=False),
-              help='Input MGF file containing cluster representatives')
+              help='Input spectrum file containing cluster representatives')
 @click.option('--filename_out', 'filename_out',
               type=click.Path(dir_okay=False),
               help='Output CSV file containing representative scores')
@@ -51,10 +51,10 @@ def evaluate(filename_spectra: str, filename_representatives: str,
     Parameters
     ----------
     filename_spectra : str
-        Input MGF file containing original spectra (including cluster
+        Input spectrum file containing original spectra (including cluster
         assignments).
     filename_representatives : str
-        Input MGF file containing cluster representatives.
+        Input spectrum file containing cluster representatives.
     filename_out : str
         Output JSON file containing representative scores.
     measures : Tuple[str]
