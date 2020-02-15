@@ -73,8 +73,8 @@ def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
             spectrum_dict['params'].get('rtinseconds'))
         spectrum.filename = spectrum_dict['params'].get(
             'filename', os.path.splitext(os.path.basename(filename))[0])
-        if 'scans' in spectrum_dict['params']:
-            spectrum.scan = spectrum_dict['params']['scans']
+        if 'scan' in spectrum_dict['params']:
+            spectrum.scan = spectrum_dict['params']['scan']
         if 'cluster' in spectrum_dict['params']:
             spectrum.cluster = spectrum_dict['params']['cluster']
         yield spectrum
@@ -335,6 +335,32 @@ def _convert_clusters_mscluster(clusters: Dict[int, int],
 
 def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
     """
+    Write the given spectra to a peak file.
+
+    Supported formats: MGF, mzML.
+
+    Parameters
+    ----------
+    filename : str
+        The file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the peak file.
+    """
+    ext = os.path.splitext(filename.lower())[1]
+    if ext == '.mgf':
+        _write_spectra_mgf(filename, spectra)
+    elif ext == '.mzml':
+        _write_spectra_mzml(filename, spectra)
+    else:
+        logger.error('Unsupported peak file format (supported formats: MGF, '
+                     'mzML)')
+        raise ValueError('Unsupported peak file format (supported formats: '
+                         'MGF, mzML)')
+
+
+def _write_spectra_mgf(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
+        -> None:
+    """
     Write the given spectra to an MGF file.
 
     Parameters
@@ -372,12 +398,27 @@ def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) -> Iterable[Dict]:
         if hasattr(spectrum, 'filename'):
             params['filename'] = spectrum.filename
         if hasattr(spectrum, 'scan'):
-            params['scans'] = spectrum.scan
+            params['scan'] = spectrum.scan
         if hasattr(spectrum, 'cluster'):
             params['cluster'] = spectrum.cluster
         yield {'params': params,
                'm/z array': spectrum.mz,
                'intensity array': spectrum.intensity}
+
+
+def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
+        -> None:
+    """
+    Write the given spectra to an mzML file.
+
+    Parameters
+    ----------
+    filename : str
+        The mzML file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the mzML file.
+    """
+    raise NotImplementedError('mzML export is not supported yet')
 
 
 ###############################################################################
@@ -509,7 +550,8 @@ def _read_psms_idxml(filename: str) -> pd.DataFrame:
         protein_ids[0].getMetaValue('spectra_data')[0].decode()))[0]
     for psm in tqdm.tqdm(psms, desc='PSMs read', unit='PSMs'):
         spectrum_index = psm.getMetaValue('spectrum_reference').decode()
-        scans.append(int(spectrum_index[spectrum_index.find('=') + 1:]))
+        scans.append(
+            int(spectrum_index[spectrum_index.find('scan=') + len('scan='):]))
         sequences.append(psm.getHits()[0].getSequence().toString().decode())
         scores.append(psm.getHits()[0].getScore())
     psms = pd.DataFrame({'filename': peak_filename, 'scan': scans,
