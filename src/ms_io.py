@@ -142,6 +142,9 @@ def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     Read MS/MS spectra from an mzXML file.
 
+    Attention: Reading intermediate mzXML files with clustering information is
+    not supported, only original mzXML files.
+
     Parameters
     ----------
     filename : str
