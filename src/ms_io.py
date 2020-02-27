@@ -427,7 +427,7 @@ def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
         The spectra to be written to the mzML file.
     """
     experiment = pyopenms.MSExperiment()
-    for spectrum in spectra:
+    for spectrum in tqdm.tqdm(spectra, desc='Spectra written', unit='spectra'):
         mzml_spectrum = pyopenms.MSSpectrum()
         mzml_spectrum.setMSLevel(2)
         mzml_spectrum.setNativeID(spectrum.identifier)
