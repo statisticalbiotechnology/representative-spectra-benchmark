@@ -120,13 +120,19 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
                         None,
                         (spectrum_dict['scanList']['scan'][0]
                                       ['scan start time']))
-                    if 'scan=' in spectrum.identifier:
+                    spectrum.filename = spectrum_dict.get(
+                        'filename',
+                        os.path.splitext(os.path.basename(filename))[0])
+                    if 'scan' in spectrum_dict:
+                        spectrum.scan = str(int(spectrum_dict['scan']))
+                    elif 'scan=' in spectrum.identifier:
                         spectrum.scan = int(
                             spectrum.identifier[
                                 spectrum.identifier.find('scan=')
                                 + len('scan='):])
-                        spectrum.filename = os.path.splitext(
-                            os.path.basename(filename))[0]
+                    if 'cluster' in spectrum_dict:
+                        spectrum.cluster = str(int(spectrum_dict['cluster']))
+                    print(spectrum.scan, spectrum.cluster, spectrum.filename)
                     yield spectrum
         except LxmlError as e:
             logger.error('Failed to read file %s: %s', filename, e)
@@ -431,9 +437,8 @@ def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
         if hasattr(spectrum, 'retention_time'):
             mzml_spectrum.setRT(spectrum.retention_time)
         if hasattr(spectrum, 'filename'):
-            source_file = pyopenms.SourceFile()
-            source_file.setNameOfFile(str.encode(spectrum.filename))
-            mzml_spectrum.setSourceFile(source_file)
+            mzml_spectrum.setMetaValue(
+                'filename', str.encode(spectrum.filename))
         if hasattr(spectrum, 'scan'):
             mzml_spectrum.setMetaValue('scan', str.encode(spectrum.scan))
         if hasattr(spectrum, 'cluster'):
