@@ -131,8 +131,7 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
                                 spectrum.identifier.find('scan=')
                                 + len('scan='):])
                     if 'cluster' in spectrum_dict:
-                        spectrum.cluster = str(int(spectrum_dict['cluster']))
-                    print(spectrum.scan, spectrum.cluster, spectrum.filename)
+                        spectrum.cluster = int(spectrum_dict['cluster'])
                     yield spectrum
         except LxmlError as e:
             logger.error('Failed to read file %s: %s', filename, e)
@@ -443,9 +442,10 @@ def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
             mzml_spectrum.setMetaValue(
                 'filename', str.encode(spectrum.filename))
         if hasattr(spectrum, 'scan'):
-            mzml_spectrum.setMetaValue('scan', str.encode(spectrum.scan))
+            mzml_spectrum.setMetaValue('scan', str.encode(str(spectrum.scan)))
         if hasattr(spectrum, 'cluster'):
-            mzml_spectrum.setMetaValue('cluster', str.encode(spectrum.cluster))
+            mzml_spectrum.setMetaValue(
+                'cluster', str.encode(str(spectrum.cluster)))
         experiment.addSpectrum(mzml_spectrum)
     pyopenms.MzMLFile().store(filename, experiment)
 
