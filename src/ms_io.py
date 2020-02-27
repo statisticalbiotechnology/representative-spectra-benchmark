@@ -120,13 +120,18 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
                         None,
                         (spectrum_dict['scanList']['scan'][0]
                                       ['scan start time']))
-                    if 'scan=' in spectrum.identifier:
+                    spectrum.filename = spectrum_dict.get(
+                        'filename',
+                        os.path.splitext(os.path.basename(filename))[0])
+                    if 'scan' in spectrum_dict:
+                        spectrum.scan = str(int(spectrum_dict['scan']))
+                    elif 'scan=' in spectrum.identifier:
                         spectrum.scan = int(
                             spectrum.identifier[
                                 spectrum.identifier.find('scan=')
                                 + len('scan='):])
-                        spectrum.filename = os.path.splitext(
-                            os.path.basename(filename))[0]
+                    if 'cluster' in spectrum_dict:
+                        spectrum.cluster = int(spectrum_dict['cluster'])
                     yield spectrum
         except LxmlError as e:
             logger.error('Failed to read file %s: %s', filename, e)
@@ -135,6 +140,9 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
 def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     Read MS/MS spectra from an mzXML file.
+
+    Attention: Reading intermediate mzXML files with clustering information is
+    not supported, only original mzXML files.
 
     Parameters
     ----------
@@ -418,7 +426,28 @@ def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
     spectra : Iterable[sus.MsmsSpectrum]
         The spectra to be written to the mzML file.
     """
-    raise NotImplementedError('mzML export is not supported yet')
+    experiment = pyopenms.MSExperiment()
+    for spectrum in tqdm.tqdm(spectra, desc='Spectra written', unit='spectra'):
+        mzml_spectrum = pyopenms.MSSpectrum()
+        mzml_spectrum.setMSLevel(2)
+        mzml_spectrum.setNativeID(spectrum.identifier)
+        precursor = pyopenms.Precursor()
+        precursor.setMZ(spectrum.precursor_mz)
+        precursor.setCharge(spectrum.precursor_charge)
+        mzml_spectrum.setPrecursors([precursor])
+        mzml_spectrum.set_peaks([spectrum.mz, spectrum.intensity])
+        if hasattr(spectrum, 'retention_time'):
+            mzml_spectrum.setRT(spectrum.retention_time)
+        if hasattr(spectrum, 'filename'):
+            mzml_spectrum.setMetaValue(
+                'filename', str.encode(spectrum.filename))
+        if hasattr(spectrum, 'scan'):
+            mzml_spectrum.setMetaValue('scan', str.encode(str(spectrum.scan)))
+        if hasattr(spectrum, 'cluster'):
+            mzml_spectrum.setMetaValue(
+                'cluster', str.encode(str(spectrum.cluster)))
+        experiment.addSpectrum(mzml_spectrum)
+    pyopenms.MzMLFile().store(filename, experiment)
 
 
 ###############################################################################
