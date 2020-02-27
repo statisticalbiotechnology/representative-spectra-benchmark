@@ -418,7 +418,28 @@ def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
     spectra : Iterable[sus.MsmsSpectrum]
         The spectra to be written to the mzML file.
     """
-    raise NotImplementedError('mzML export is not supported yet')
+    experiment = pyopenms.MSExperiment()
+    for spectrum in spectra:
+        mzml_spectrum = pyopenms.MSSpectrum()
+        mzml_spectrum.setMSLevel(2)
+        mzml_spectrum.setNativeID(spectrum.identifier)
+        precursor = pyopenms.Precursor()
+        precursor.setMZ(spectrum.precursor_mz)
+        precursor.setCharge(spectrum.precursor_charge)
+        mzml_spectrum.setPrecursors([precursor])
+        mzml_spectrum.set_peaks([spectrum.mz, spectrum.intensity])
+        if hasattr(spectrum, 'retention_time'):
+            mzml_spectrum.setRT(spectrum.retention_time)
+        if hasattr(spectrum, 'filename'):
+            source_file = pyopenms.SourceFile()
+            source_file.setNameOfFile(str.encode(spectrum.filename))
+            mzml_spectrum.setSourceFile(source_file)
+        if hasattr(spectrum, 'scan'):
+            mzml_spectrum.setMetaValue('scan', str.encode(spectrum.scan))
+        if hasattr(spectrum, 'cluster'):
+            mzml_spectrum.setMetaValue('cluster', str.encode(spectrum.cluster))
+        experiment.addSpectrum(mzml_spectrum)
+    pyopenms.MzMLFile().store(filename, experiment)
 
 
 ###############################################################################
