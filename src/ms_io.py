@@ -73,8 +73,8 @@ def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
             spectrum_dict['params'].get('rtinseconds'))
         spectrum.filename = spectrum_dict['params'].get(
             'filename', os.path.splitext(os.path.basename(filename))[0])
-        if 'scans' in spectrum_dict['params']:
-            spectrum.scan = spectrum_dict['params']['scans']
+        if 'scan' in spectrum_dict['params']:
+            spectrum.scan = spectrum_dict['params']['scan']
         if 'cluster' in spectrum_dict['params']:
             spectrum.cluster = spectrum_dict['params']['cluster']
         yield spectrum
@@ -120,13 +120,18 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
                         None,
                         (spectrum_dict['scanList']['scan'][0]
                                       ['scan start time']))
-                    if 'scan=' in spectrum.identifier:
+                    spectrum.filename = spectrum_dict.get(
+                        'filename',
+                        os.path.splitext(os.path.basename(filename))[0])
+                    if 'scan' in spectrum_dict:
+                        spectrum.scan = str(int(spectrum_dict['scan']))
+                    elif 'scan=' in spectrum.identifier:
                         spectrum.scan = int(
                             spectrum.identifier[
                                 spectrum.identifier.find('scan=')
                                 + len('scan='):])
-                        spectrum.filename = os.path.splitext(
-                            os.path.basename(filename))[0]
+                    if 'cluster' in spectrum_dict:
+                        spectrum.cluster = int(spectrum_dict['cluster'])
                     yield spectrum
         except LxmlError as e:
             logger.error('Failed to read file %s: %s', filename, e)
@@ -135,6 +140,9 @@ def _read_spectra_mzml(filename: str) -> Iterable[sus.MsmsSpectrum]:
 def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     Read MS/MS spectra from an mzXML file.
+
+    Attention: Reading intermediate mzXML files with clustering information is
+    not supported, only original mzXML files.
 
     Parameters
     ----------
@@ -335,6 +343,32 @@ def _convert_clusters_mscluster(clusters: Dict[int, int],
 
 def write_spectra(filename: str, spectra: Iterable[sus.MsmsSpectrum]) -> None:
     """
+    Write the given spectra to a peak file.
+
+    Supported formats: MGF, mzML.
+
+    Parameters
+    ----------
+    filename : str
+        The file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the peak file.
+    """
+    ext = os.path.splitext(filename.lower())[1]
+    if ext == '.mgf':
+        _write_spectra_mgf(filename, spectra)
+    elif ext == '.mzml':
+        _write_spectra_mzml(filename, spectra)
+    else:
+        logger.error('Unsupported peak file format (supported formats: MGF, '
+                     'mzML)')
+        raise ValueError('Unsupported peak file format (supported formats: '
+                         'MGF, mzML)')
+
+
+def _write_spectra_mgf(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
+        -> None:
+    """
     Write the given spectra to an MGF file.
 
     Parameters
@@ -372,12 +406,48 @@ def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) -> Iterable[Dict]:
         if hasattr(spectrum, 'filename'):
             params['filename'] = spectrum.filename
         if hasattr(spectrum, 'scan'):
-            params['scans'] = spectrum.scan
+            params['scan'] = spectrum.scan
         if hasattr(spectrum, 'cluster'):
             params['cluster'] = spectrum.cluster
         yield {'params': params,
                'm/z array': spectrum.mz,
                'intensity array': spectrum.intensity}
+
+
+def _write_spectra_mzml(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
+        -> None:
+    """
+    Write the given spectra to an mzML file.
+
+    Parameters
+    ----------
+    filename : str
+        The mzML file name where the spectra will be written.
+    spectra : Iterable[sus.MsmsSpectrum]
+        The spectra to be written to the mzML file.
+    """
+    experiment = pyopenms.MSExperiment()
+    for spectrum in tqdm.tqdm(spectra, desc='Spectra written', unit='spectra'):
+        mzml_spectrum = pyopenms.MSSpectrum()
+        mzml_spectrum.setMSLevel(2)
+        mzml_spectrum.setNativeID(spectrum.identifier)
+        precursor = pyopenms.Precursor()
+        precursor.setMZ(spectrum.precursor_mz)
+        precursor.setCharge(spectrum.precursor_charge)
+        mzml_spectrum.setPrecursors([precursor])
+        mzml_spectrum.set_peaks([spectrum.mz, spectrum.intensity])
+        if hasattr(spectrum, 'retention_time'):
+            mzml_spectrum.setRT(spectrum.retention_time)
+        if hasattr(spectrum, 'filename'):
+            mzml_spectrum.setMetaValue(
+                'filename', str.encode(spectrum.filename))
+        if hasattr(spectrum, 'scan'):
+            mzml_spectrum.setMetaValue('scan', str.encode(str(spectrum.scan)))
+        if hasattr(spectrum, 'cluster'):
+            mzml_spectrum.setMetaValue(
+                'cluster', str.encode(str(spectrum.cluster)))
+        experiment.addSpectrum(mzml_spectrum)
+    pyopenms.MzMLFile().store(filename, experiment)
 
 
 ###############################################################################
@@ -509,7 +579,8 @@ def _read_psms_idxml(filename: str) -> pd.DataFrame:
         protein_ids[0].getMetaValue('spectra_data')[0].decode()))[0]
     for psm in tqdm.tqdm(psms, desc='PSMs read', unit='PSMs'):
         spectrum_index = psm.getMetaValue('spectrum_reference').decode()
-        scans.append(int(spectrum_index[spectrum_index.find('=') + 1:]))
+        scans.append(
+            int(spectrum_index[spectrum_index.find('scan=') + len('scan='):]))
         sequences.append(psm.getHits()[0].getSequence().toString().decode())
         scores.append(psm.getHits()[0].getScore())
     psms = pd.DataFrame({'filename': peak_filename, 'scan': scans,
