@@ -57,11 +57,12 @@ image::image-2021-04-04-10-33-58-194.png[]
 image::image-2021-04-04-10-34-14-938.png[]
 
 The description of columns:
-#MS : No. of total MS
-No. Unique Peptide Sequences: The No. of Unique Peptides
-No. PSMs: The No. of PSMs
-No. phospho: The total No. of peptides with phosphorylation site
-No. the same peptides with the same phospho (intersection): #
-No. peptides except the intersection: the No. of peptides except the intersection
-error rate: No. peptides except the intersection / No. phosphor
-correct rate: No. the same peptides with the same phospho (intersection) / No. phosphor
+
+* #MS : No. of total MS
+* No. Unique Peptide Sequences: The No. of Unique Peptides
+* No. PSMs: The No. of PSMs
+* No. phospho: The total No. of peptides with phosphorylation site
+* No. the same peptides with the same phospho (intersection): #
+* No. peptides except the intersection: the No. of peptides except the intersection
+* error rate: No. peptides except the intersection / No. phosphor
+* correct rate: No. the same peptides with the same phospho (intersection) / No. phosphor
