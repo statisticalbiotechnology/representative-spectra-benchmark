@@ -45,16 +45,16 @@ In order to compare different algorithms we follow this metrics:
 
 == Dataset 2: PXD007058
 
-image::image-2021-04-04-10-33-26-973.png[]
+image::Figure1.png[]
 
 This figure demonstrates that distributions of identifying results with phosphorylation site from Original MS and Consensus MS.
 
 1.	Excepting best method, the correct rate (including bin, most, average method) is over 67%. In PRIDE, the correct rate is higher. The correct rate in best mothed is approximately 55%.
 2.	The gross of peptides identified is relatively small. Similarly, the MaxQuant results that downloading from PRIDE archive is also small
 
-image::image-2021-04-04-10-33-58-194.png[]
+image::Table2.png[]
 
-image::image-2021-04-04-10-34-14-938.png[]
+image::Table3.png[]
 
 The description of columns:
 
