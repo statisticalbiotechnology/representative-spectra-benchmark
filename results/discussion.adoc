@@ -13,7 +13,7 @@ image::pipeline-2021.png[]
 
 == Dataset 1: PXD004732
 
-image::image-2021-04-04-10-27-37-995.png[]
+image::table1.png[]
 
 Note:: More details can be seen in the document identification-results-4.3.xlsx
 
