@@ -13,41 +13,48 @@ image::pipeline-2021.png[]
 
 == Dataset 1: PXD004732
 
+image::image-2021-04-04-10-27-37-995.png[]
 
-The statistics of the No. of MS, PSMs, Peptides for original identification and Consensus MS identifications.
-1.	Why MARA-best and PRIDE-best has much less MS?
-a)	Because best method only prepares consensus spectrum for clusters which have identified MSs. So, Mara-clustering has (11218-4727) clusters which are unidentified; PRIDE-clustering has (9232-3755) clusters which are unidentified.
+Note:: More details can be seen in the document identification-results-4.3.xlsx
 
-2.	How to understand the No. MS between two clustering methods?
-a)	Mara-cluster has 11218 clusters at p10 level;(???clusters at p20 level)
-b)	PRIDE-cluster has 9232 clusters at 0.99 threshold.
+In order to compare different algorithms we follow this metrics:
+
+* The description of columns.
+** MS	The No. of total  MS
+** Unique Peptide Sequences	The No. of Unique Peptides
+** One-time Peptide sequences	The No. of Unique Peptides which only appears one time in PSMs
+** Multi-times Peptide sequences	The No. of Unique Peptides which appears more than one times in PSMs
+** PSMs	The No. of PSMs
+** Proteins	The No. of referenced Proteins
+** No.PSMs/No.MS	The ratio of No.PSMs/No. MS
+** No.Unique Peptide/No.Unique Peptide of Original Identification	The ratio of Unique Peptide/ Unique Peptide in Original Identification One-time Peptide /Unique Peptide	The ratio of One-time Peptide /Unique Peptide
+
+=== Some remarks:
+
+* Why MARA-best and PRIDE-best has much less MS?: Because best method only prepares consensus spectrum for clusters which have identified MSs. So, Mara-clustering has (11218-4727) clusters which are unidentified; PRIDE-clustering has (9232-3755) clusters which are unidentified.
+
+* How to understand the No. MS between two clustering methods?
+** Mara-cluster has 11218 clusters at p10 level;(???clusters at p20 level)
+** PRIDE-cluster has 9232 clusters at 0.99 threshold.
 
 
-3.	What can we learn from this table?
-a)	It looks like Mara-cluster has better identification Ratio on No.PSMs/No.MS:  0.844>0.819;
-b)	It looks like Mara-cluster has better unique peptide identification ratio on No.Unique Peptide/No.Unique Peptide in Original Identification: 0.370>0.349;
-c)	This trend also can be found at other RAW files too.
-4.
-
-1.	The description of columns.
-#MS	The No. of total  MS
-Unique Peptide Sequences	The No. of Unique Peptides
-One-time Peptide sequences	The No. of Unique Peptides which only appears one time in PSMs
-Multi-times Peptide sequences	The No. of Unique Peptides which appears more than one times in PSMs
-PSMs	The No. of PSMs
-Proteins	The No. of referenced Proteins
-No.PSMs/No.MS	The ratio of No.PSMs/No. MS
-No.Unique Peptide/No.Unique Peptide of Original Identification	The ratio of Unique Peptide/ Unique Peptide in Original Identification
-One-time Peptide /Unique Peptide	The ratio of One-time Peptide /Unique Peptide
-
+* What can we learn from this table?
+** It looks like Mara-cluster has better identification Ratio on No.PSMs/No.MS:  0.844>0.819;
+** It looks like Mara-cluster has better unique peptide identification ratio on No.Unique Peptide/No.Unique Peptide in Original Identification: 0.370>0.349;
+** This trend also can be found at other RAW files too.
 
 == Dataset 2: PXD007058
 
+image::image-2021-04-04-10-33-26-973.png[]
+
 This figure demonstrates that distributions of identifying results with phosphorylation site from Original MS and Consensus MS.
+
 1.	Excepting best method, the correct rate (including bin, most, average method) is over 67%. In PRIDE, the correct rate is higher. The correct rate in best mothed is approximately 55%.
 2.	The gross of peptides identified is relatively small. Similarly, the MaxQuant results that downloading from PRIDE archive is also small
 
+image::image-2021-04-04-10-33-58-194.png[]
 
+image::image-2021-04-04-10-34-14-938.png[]
 
 The description of columns:
 #MS : No. of total MS
