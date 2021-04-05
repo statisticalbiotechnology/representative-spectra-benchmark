@@ -186,7 +186,6 @@ We used 3 raw files from the experiment to detect major differences in the ident
 |57
 |55
 
-
 10+|SF_200217_pPeptideLibrary_pool4_HCDnlEThcD_OT_rep1
 
 |# MS/MS
