@@ -133,24 +133,118 @@ As I mentioned in  https://github.com/statisticalbiotechnology/representative-sp
 
 == Dataset 2: PXD007058
 
+In the dataset PXD007058 [PubMed:28741359], the authors compare and contrast eight MS acquisition methods on the novel tribrid Orbitrap Fusion MS platform, using both a synthetic phosphopeptide library and a complex phosphopeptide-enriched cell lysate. As well as evaluating multiple fragmentation regimes (HCD, EThcD and neutral loss triggered ET(ca/hc)D), and analyzers for MS/MS (orbitrap (OT) versus ion trap (IT)).
+
+We used 3 raw files from the experiment to detect major differences in the identification of phosphorilated peptides when clustering is applied before database search.
+
+=== Results dataset PXD007058
+
+|===
+||Non-Clustered MS |MaRa-best|MARA-bin |MARA-most  |MARA-average |PRIDE-best |PRIDE-bin |PRIDE-most |PRIDE-average
+10+|SF_200217_pPeptideLibrary_pool1_HCDOT_rep1
+|# MS/MS
+|7465
+|159
+|3081
+|3081
+|3081
+|151
+|3066
+|3066
+|3066
+
+|# Peptides
+|74
+|65
+|57
+|52
+|54
+|59
+|52
+|50
+|48
+
+|# PSMs
+|187
+|155
+|158
+|151
+|155
+|141
+|140
+|138
+|137
+
+|# phospho
+|82
+|70
+|**65**
+|59
+|60
+|65
+|**59**
+|57
+|55
+
+
+10+|SF_200217_pPeptideLibrary_pool4_HCDnlEThcD_OT_rep1
+
+|# MS/MS
+|6971
+|209
+|2815
+|2815
+|2815
+|205
+|2804
+|2804
+|2804
+
+|# Peptides
+|90
+|80
+|83
+|96
+|89
+|83
+|99
+|64
+|66
+
+|# PSMs
+|288
+|191
+|226
+|239
+|234
+|188
+|239
+|193
+|203
+
+|# phospho
+|121
+|99
+|108
+|**117**
+|112
+|100
+|**119**
+|90
+|92
+
+|===
+
+=== Some remarks and conclusions
+
+* Excepting best method, the correct rate (including bin, most, average method) is over 67%. In PRIDE, the correct rate is higher. The correct rate in best mothed is approximately 55%.
+
+* No major differences are observed on phosphorilation analysis.
+
+[NOTE]
+====
+The gross of peptides identified is relatively small. Similarly, the MaxQuant results that downloading from PRIDE archive is also small
+====
+
 image::Figure1.png[]
 
-This figure demonstrates that distributions of identifying results with phosphorylation site from Original MS and Consensus MS.
-
-1.	Excepting best method, the correct rate (including bin, most, average method) is over 67%. In PRIDE, the correct rate is higher. The correct rate in best mothed is approximately 55%.
-2.	The gross of peptides identified is relatively small. Similarly, the MaxQuant results that downloading from PRIDE archive is also small
-
-image::Table2.png[]
-
-image::Table3.png[]
-
-The description of columns:
-
-* #MS : No. of total MS
-* No. Unique Peptide Sequences: The No. of Unique Peptides
-* No. PSMs: The No. of PSMs
-* No. phospho: The total No. of peptides with phosphorylation site
-* No. the same peptides with the same phospho (intersection): #
-* No. peptides except the intersection: the No. of peptides except the intersection
-* error rate: No. peptides except the intersection / No. phosphor
-* correct rate: No. the same peptides with the same phospho (intersection) / No. phosphor
