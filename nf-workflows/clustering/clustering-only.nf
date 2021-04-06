@@ -27,11 +27,14 @@ threads = 1
 /**
  * Create a channel for all MGF files
  **/
-(mgf_files, mgf_files_2) = Channel.fromPath("${params.raw_dir}/*.mgf").into(2)
+(mgf_files, mgf_files_2) = Channel.fromPath("${params.raw_dir}/*.mzML").into(2)
 
 process runClustering {
 	container 'biocontainers/spectra-cluster-cli:vv1.1.2_cv2'
-	publishDir "result"
+	publishDir "${params.result_folder}", mode: 'copy', overwrite: true
+
+	when:
+      params.spectracluster
 
 	input:
 	file mgf_file from mgf_files
@@ -47,8 +50,10 @@ process runClustering {
 
 process runMaRaCluster(){
    container 'ypriverol/maracluster:1.0'
+   publishDir "${params.result_folder}", mode: 'copy', overwrite: true
 
-   publishDir "result"
+   when:
+    params.maracluster
 
    input:
    file mgf_file from mgf_files_2
@@ -61,8 +66,5 @@ process runMaRaCluster(){
    echo ${mgf_file} > bash_files.txt
    maracluster batch -b bash_files.txt -t -10
    """
-
-
-
 }
 
