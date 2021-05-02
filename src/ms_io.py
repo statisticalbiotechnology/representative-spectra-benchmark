@@ -398,7 +398,7 @@ def _write_spectra_mgf(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
         The spectra to be written to the MGF file.
     """
     with open(filename, 'w') as f_out:
-        pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out)
+        pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out, use_numpy=True)
 
 
 def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) -> Iterable[Dict]:
