@@ -35,16 +35,20 @@ def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     ext = os.path.splitext(filename.lower())[1]
     if ext == '.mgf':
-        yield from _read_spectra_mgf(filename)
+        _read_spectra = _read_spectra_mgf
     elif ext == '.mzml':
-        yield from _read_spectra_mzml(filename)
+        _read_spectra = _read_spectra_mzml
     elif ext == '.mzxml':
-        yield from _read_spectra_mzxml(filename)
+        _read_spectra = _read_spectra_mzxml
     else:
         logger.error('Unsupported peak file format (supported formats: MGF, '
                      'mzML, mzXML)')
         raise ValueError('Unsupported peak file format (supported formats: '
                          'MGF, mzML, mzXML)')
+
+    for spec in _read_spectra(filename):
+        if spec is not None:
+            yield spec
 
 
 def read_spectra_list(filename: str) -> List[sus.MsmsSpectrum]:
@@ -63,7 +67,7 @@ def read_spectra_list(filename: str) -> List[sus.MsmsSpectrum]:
     List[sus.MsmsSpectrum]
         An list of spectra in the given peak file.
     """
-    return [spec for spec in read_spectra(filename)]
+    return list(read_spectra(filename))
 
 
 def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
@@ -82,20 +86,29 @@ def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     for spectrum_dict in tqdm.tqdm(pyteomics.mgf.read(filename),
                                    desc='Spectra read', unit='spectra'):
+        identifier = spectrum_dict['params']['title']
+
+        mz_array = spectrum_dict['m/z array']
+        intensity_array = spectrum_dict['intensity array']
+        retention_time = float(spectrum_dict['params'].get('rtinseconds', -1))
+
+        precursor_mz = float(spectrum_dict['params']['pepmass'][0])
+        if 'charge' in spectrum_dict['params']:
+            precursor_charge = int(spectrum_dict['params']['charge'][0])
+        else:
+            return None
+
         spectrum = sus.MsmsSpectrum(
-            spectrum_dict['params']['title'],
-            spectrum_dict['params']['pepmass'][0],
-            spectrum_dict['params']['charge'][0],
-            spectrum_dict['m/z array'],
-            spectrum_dict['intensity array'],
-            None,
-            spectrum_dict['params'].get('rtinseconds'))
+            identifier, precursor_mz, precursor_charge, mz_array,
+            intensity_array, None, retention_time)
+
         spectrum.filename = spectrum_dict['params'].get(
             'filename', os.path.splitext(os.path.basename(filename))[0])
         if 'scan' in spectrum_dict['params']:
             spectrum.scan = spectrum_dict['params']['scan']
         if 'cluster' in spectrum_dict['params']:
             spectrum.cluster = spectrum_dict['params']['cluster']
+
         yield spectrum
 
 
