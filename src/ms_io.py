@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Dict, Iterable, List
 
+import numpy as np
 import pandas as pd
 import pyopenms
 import pyteomics.mgf
@@ -229,7 +230,7 @@ def read_clusters(filename: str, fmt: str,
         The cluster assignment file name.
     fmt : str
         Format of the cluster assignment file. Supported formats:
-        "maracluster", "spectra-cluster", "ms-cluster".
+        "falcon", "maracluster", "spectra-cluster", "ms-cluster".
     spectra_keys : List[str]
         Required for MS-Cluster cluster assignment reading, ignored otherwise.
         Ordered list of spectrum keys used to properly set the spectrum
@@ -241,7 +242,9 @@ def read_clusters(filename: str, fmt: str,
         A dictionary with as keys the spectrum identifiers (format
         "{filename}:scan:{scan}") and as value the cluster index.
     """
-    if fmt == 'maracluster':
+    if fmt == 'falcon':
+        return _read_clusters_falcon(filename)
+    elif fmt == 'maracluster':
         return _read_clusters_maracluster(filename)
     elif fmt == 'spectra-cluster':
         return _read_clusters_spectracluster(filename)
@@ -254,7 +257,34 @@ def read_clusters(filename: str, fmt: str,
             _read_clusters_mscluster(filename), spectra_keys)
     else:
         raise ValueError('Unsupported cluster file format (supported formats: '
-                         'MaRaCluster, spectra-cluster, MS-Cluster)')
+                         'falcon, MaRaCluster, spectra-cluster, MS-Cluster)')
+
+
+def _read_clusters_falcon(filename: str) -> Dict[str, int]:
+    """
+    Read falcon cluster assignments.
+
+    Parameters
+    ----------
+    filename : str
+        The falcon cluster assignment file name.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    clusters = pd.read_csv(filename, comment='#')
+    # Assign noise points to singleton clusters.
+    noise_mask = clusters['cluster'] == -1
+    num_clusters = clusters['cluster'].max() + 1
+    clusters.loc[noise_mask, 'cluster'] = np.arange(
+        num_clusters, num_clusters + noise_mask.sum())
+    clusters['identifier'] = (clusters['identifier'].str.split(':').str[2:]
+                              .str.join(':'))
+    return (clusters[['identifier', 'cluster']]
+            .set_index('identifier', drop=True).squeeze().to_dict())
 
 
 def _read_clusters_maracluster(filename: str) -> Dict[str, int]:

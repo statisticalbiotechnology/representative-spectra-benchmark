@@ -21,7 +21,7 @@ logger = logging.getLogger('cluster_representative')
               required=True)
 @click.option('--cluster', 'filename_cluster', nargs=2,
               help='Input cluster assignments and cluster type (supported '
-                   'clustering formats: MaRaCluster, spectra-cluster, '
+                   'clustering formats: falcon, MaRaCluster, spectra-cluster, '
                    'MS-Cluster)',
               required=True)
 @click.option('--out', 'filename_out',
