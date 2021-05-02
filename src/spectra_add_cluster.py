@@ -16,7 +16,8 @@ logger = logging.getLogger('cluster_representative')
                     'assignments')
 @click.option('--spectra', 'filename_spectra',
               help='Input spectrum file(s) (supported file formats: MGF, mzML,'
-                   ' mzXML)',
+                   ' mzXML). This must be only a single argument (be careful '
+                   'to escape command-line wildcards).',
               required=True)
 @click.option('--cluster', 'filename_cluster', nargs=2,
               help='Input cluster assignments and cluster type (supported '
@@ -30,8 +31,7 @@ logger = logging.getLogger('cluster_representative')
 def spectra_add_cluster(filename_spectra: str,
                         filename_cluster: Tuple[str, str],
                         filename_out: str):
-    filename_spectra = [fn for pattern in filename_spectra
-                        for fn in glob.glob(pattern)]
+    filename_spectra = [fn for fn in glob.glob(filename_spectra)]
     logger.info('Read spectra from %d peak file(s)', len(filename_spectra))
     spectra = {
         f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
