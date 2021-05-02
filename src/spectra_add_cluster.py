@@ -31,13 +31,14 @@ logger = logging.getLogger('cluster_representative')
 def spectra_add_cluster(filename_spectra: str,
                         filename_cluster: Tuple[str, str],
                         filename_out: str):
-    filename_spectra = [fn for fn in glob.glob(filename_spectra)]
+    filename_spectra = glob.glob(filename_spectra)
     logger.info('Read spectra from %d peak file(s)', len(filename_spectra))
     spectra = {
         f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
-        for spectrum in joblib.Parallel(n_jobs=-1)(
+        for file_spectra in joblib.Parallel(n_jobs=-1)(
             joblib.delayed(ms_io.read_spectra_list)(filename)
-            for filename in filename_spectra)}
+            for filename in filename_spectra)
+        for spectrum in file_spectra}
 
     logger.info('Read clusters from cluster file %s', filename_cluster[0])
     clusters = ms_io.read_clusters(
