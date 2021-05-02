@@ -47,6 +47,25 @@ def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
                          'MGF, mzML, mzXML)')
 
 
+def read_spectra_list(filename: str) -> List[sus.MsmsSpectrum]:
+    """
+    Read MS/MS spectra from a peak file.
+
+    Supported formats: MGF, mzML, mzXML.
+
+    Parameters
+    ----------
+    filename : str
+        The peak file name.
+
+    Returns
+    -------
+    List[sus.MsmsSpectrum]
+        An list of spectra in the given peak file.
+    """
+    return [spec for spec in read_spectra(filename)]
+
+
 def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     Read MS/MS spectra from an MGF file.

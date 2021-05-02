@@ -1,7 +1,9 @@
+import glob
 import logging
 from typing import Tuple
 
 import click
+import joblib
 
 import ms_io
 
@@ -13,8 +15,8 @@ logger = logging.getLogger('cluster_representative')
                help='Export spectra to an MGF file containing cluster '
                     'assignments')
 @click.option('--spectra', 'filename_spectra',
-              help='Input spectrum file (supported file formats: MGF, mzML, '
-                   'mzXML)',
+              help='Input spectrum file(s) (supported file formats: MGF, mzML,'
+                   ' mzXML)',
               required=True)
 @click.option('--cluster', 'filename_cluster', nargs=2,
               help='Input cluster assignments and cluster type (supported '
@@ -28,9 +30,14 @@ logger = logging.getLogger('cluster_representative')
 def spectra_add_cluster(filename_spectra: str,
                         filename_cluster: Tuple[str, str],
                         filename_out: str):
-    logger.info('Read spectra from spectrum file %s', filename_spectra)
-    spectra = {f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
-               for spectrum in ms_io.read_spectra(filename_spectra)}
+    filename_spectra = [fn for pattern in filename_spectra
+                        for fn in glob.glob(pattern)]
+    logger.info('Read spectra from %d peak file(s)', len(filename_spectra))
+    spectra = {
+        f'{spectrum.filename}:scan:{spectrum.scan}': spectrum
+        for spectrum in joblib.Parallel(n_jobs=-1)(
+            joblib.delayed(ms_io.read_spectra_list)(filename)
+            for filename in filename_spectra)}
 
     logger.info('Read clusters from cluster file %s', filename_cluster[0])
     clusters = ms_io.read_clusters(
