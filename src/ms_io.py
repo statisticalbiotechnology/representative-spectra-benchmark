@@ -295,10 +295,10 @@ def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
             if line.startswith('=Cluster='):
                 cluster_i += 1
             elif line.startswith('SPEC'):
-                fn = line[line.find('#file') + len('#file') + 1:
-                          line.find('#id')]
-                scan = line[line.find('#id=index=') + len('#id=index='):
-                            line.find('#title')]
+                fn = line[line.find('#file=') + len('#file='):line.find('#id')]
+                scan_start_i = line.find('scan=') + len('scan=')
+                scan_stop_i = line.find('\t', scan_start_i)
+                scan = line[scan_start_i:scan_stop_i]
                 clusters[f'{os.path.splitext(os.path.basename(fn))[0]}:scan:'
                          f'{scan}'] = cluster_i
                 progress_bar.update(1)
