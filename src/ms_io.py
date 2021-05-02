@@ -267,8 +267,8 @@ def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
                 cluster_i += 1
             else:
                 fn, scan, *_ = line.split('\t')
-                clusters[f'{os.path.splitext(fn)[0]}:scan:{scan}'] = \
-                    cluster_i
+                clusters[f'{os.path.splitext(os.path.basename(fn))[0]}:scan:'
+                         f'{scan}'] = cluster_i
                 progress_bar.update(1)
         return clusters
 
