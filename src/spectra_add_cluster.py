@@ -44,13 +44,16 @@ def spectra_add_cluster(filename_spectra: str,
     clusters = ms_io.read_clusters(
         filename_cluster[0], filename_cluster[1].lower(), list(spectra.keys()))
 
-    for spectrum in spectra.values():
-        spectrum_key = f'{spectrum.filename}:scan:{spectrum.scan}'
+    exclude_spectra = []
+    for spectrum_key, spectrum in spectra.items():
         if spectrum_key in clusters:
             spectrum.cluster = clusters[spectrum_key]
         else:
+            exclude_spectra.append(spectrum_key)
             logger.warning('No cluster assignment found for spectrum %s',
                            spectrum.identifier)
+    for spectrum_key in exclude_spectra:
+        del spectra[spectrum_key]
     logging.info('Export the spectra including cluster assignments to spectrum'
                  ' file %s', filename_out)
     # Make sure the exported spectra are grouped by their clusters.
