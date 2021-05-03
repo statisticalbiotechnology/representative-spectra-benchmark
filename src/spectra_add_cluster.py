@@ -22,7 +22,7 @@ logger = logging.getLogger('cluster_representative')
 @click.option('--cluster', 'filename_cluster', nargs=2,
               help='Input cluster assignments and cluster type (supported '
                    'clustering formats: falcon, MaRaCluster, spectra-cluster, '
-                   'MS-Cluster)',
+                   'MS-Cluster, msCRUSH)',
               required=True)
 @click.option('--out', 'filename_out',
               help='Output mzML or MGF file containing the updated spectra '

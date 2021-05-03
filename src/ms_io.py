@@ -244,9 +244,12 @@ def read_clusters(filename: str, fmt: str) -> Dict[str, int]:
         return _read_clusters_spectracluster(filename)
     elif fmt == 'ms-cluster':
         return _read_clusters_mscluster(filename)
+    elif fmt == 'mscrush':
+        return _read_clusters_mscrush(filename)
     else:
         raise ValueError('Unsupported cluster file format (supported formats: '
-                         'falcon, MaRaCluster, spectra-cluster, MS-Cluster)')
+                         'falcon, MaRaCluster, spectra-cluster, MS-Cluster, '
+                         'msCRUSH)')
 
 
 def _read_clusters_falcon(filename: str) -> Dict[str, int]:
@@ -339,6 +342,39 @@ def _read_clusters_mscluster(dir_name: str) -> Dict[str, int]:
                                      f'{int(splits[2])}'] = cluster_i
                             progress_bar.update(1)
     return clusters
+
+
+def _read_clusters_mscrush(dir_name: str) -> Dict[str, int]:
+    """
+    Read msCRUSH cluster assignments.
+
+    Parameters
+    ----------
+    dir_name : str
+        The msCRUSH cluster assignment directory.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    clusters = []
+    with tqdm.tqdm(desc='Cluster assignments read',
+                   unit='spectra') as progress_bar:
+        for filename in os.listdir(dir_name):
+            if filename.endswith('.txt'):
+                clusters_file = pd.read_csv(os.path.join(dir_name, filename),
+                                            sep='\t', usecols=['Titles', 'ID'])
+                clusters_file['Titles'] = (clusters_file['Titles']
+                                           .str.split('|'))
+                clusters_file = clusters_file.explode('Titles')
+                if len(clusters) > 0:
+                    clusters_file['ID'] += clusters[-1].iat[-1, 1] + 1
+                clusters.append(clusters_file)
+                progress_bar.update(len(clusters_file))
+    return (pd.concat(clusters, ignore_index=True)
+            .set_index('Titles', drop=True).squeeze().to_dict())
 
 
 def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
