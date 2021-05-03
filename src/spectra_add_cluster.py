@@ -42,7 +42,7 @@ def spectra_add_cluster(filename_spectra: str,
 
     logger.info('Read clusters from cluster file %s', filename_cluster[0])
     clusters = ms_io.read_clusters(
-        filename_cluster[0], filename_cluster[1].lower(), list(spectra.keys()))
+        filename_cluster[0], filename_cluster[1].lower())
 
     exclude_spectra = []
     for spectrum_key, spectrum in spectra.items():
