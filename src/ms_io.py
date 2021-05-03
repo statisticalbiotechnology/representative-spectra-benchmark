@@ -371,7 +371,7 @@ def _read_clusters_mscrush(dir_name: str) -> Dict[str, int]:
                 clusters_file = clusters_file.explode('Titles')
                 if len(clusters) > 0:
                     clusters_file['ID'] += clusters[-1].iat[-1, 1] + 1
-                clusters.append(clusters_file)
+                clusters.append(clusters_file['Titles', 'ID'])
                 progress_bar.update(len(clusters_file))
     return (pd.concat(clusters, ignore_index=True)
             .set_index('Titles', drop=True).squeeze().to_dict())
