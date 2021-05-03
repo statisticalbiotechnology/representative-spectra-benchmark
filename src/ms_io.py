@@ -365,10 +365,11 @@ def _read_clusters_mscrush(dir_name: str) -> Dict[str, int]:
         for filename in os.listdir(dir_name):
             if filename.endswith('.txt'):
                 clusters_file = pd.read_csv(os.path.join(dir_name, filename),
-                                            sep='\t', usecols=['Titles', 'ID'])
+                                            sep='\t')
                 clusters_file['Titles'] = (clusters_file['Titles']
                                            .str.split('|'))
                 clusters_file = clusters_file.explode('Titles')
+                clusters_file['Titles'] = clusters_file['Titles'].str.strip()
                 if len(clusters) > 0:
                     clusters_file['ID'] += clusters[-1].iat[-1, 1] + 1
                 clusters.append(clusters_file[['Titles', 'ID']])
