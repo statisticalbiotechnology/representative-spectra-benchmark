@@ -2,6 +2,7 @@ import logging
 import os
 from typing import Dict, Iterable, List
 
+import numpy as np
 import pandas as pd
 import pyopenms
 import pyteomics.mgf
@@ -35,16 +36,39 @@ def read_spectra(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     ext = os.path.splitext(filename.lower())[1]
     if ext == '.mgf':
-        yield from _read_spectra_mgf(filename)
+        _read_spectra = _read_spectra_mgf
     elif ext == '.mzml':
-        yield from _read_spectra_mzml(filename)
+        _read_spectra = _read_spectra_mzml
     elif ext == '.mzxml':
-        yield from _read_spectra_mzxml(filename)
+        _read_spectra = _read_spectra_mzxml
     else:
         logger.error('Unsupported peak file format (supported formats: MGF, '
                      'mzML, mzXML)')
         raise ValueError('Unsupported peak file format (supported formats: '
                          'MGF, mzML, mzXML)')
+
+    for spec in _read_spectra(filename):
+        if spec is not None:
+            yield spec
+
+
+def read_spectra_list(filename: str) -> List[sus.MsmsSpectrum]:
+    """
+    Read MS/MS spectra from a peak file.
+
+    Supported formats: MGF, mzML, mzXML.
+
+    Parameters
+    ----------
+    filename : str
+        The peak file name.
+
+    Returns
+    -------
+    List[sus.MsmsSpectrum]
+        An list of spectra in the given peak file.
+    """
+    return list(read_spectra(filename))
 
 
 def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
@@ -63,20 +87,29 @@ def _read_spectra_mgf(filename: str) -> Iterable[sus.MsmsSpectrum]:
     """
     for spectrum_dict in tqdm.tqdm(pyteomics.mgf.read(filename),
                                    desc='Spectra read', unit='spectra'):
+        identifier = spectrum_dict['params']['title']
+
+        mz_array = spectrum_dict['m/z array']
+        intensity_array = spectrum_dict['intensity array']
+        retention_time = float(spectrum_dict['params'].get('rtinseconds', -1))
+
+        precursor_mz = float(spectrum_dict['params']['pepmass'][0])
+        if 'charge' in spectrum_dict['params']:
+            precursor_charge = int(spectrum_dict['params']['charge'][0])
+        else:
+            return None
+
         spectrum = sus.MsmsSpectrum(
-            spectrum_dict['params']['title'],
-            spectrum_dict['params']['pepmass'][0],
-            spectrum_dict['params']['charge'][0],
-            spectrum_dict['m/z array'],
-            spectrum_dict['intensity array'],
-            None,
-            spectrum_dict['params'].get('rtinseconds'))
+            identifier, precursor_mz, precursor_charge, mz_array,
+            intensity_array, None, retention_time)
+
         spectrum.filename = spectrum_dict['params'].get(
             'filename', os.path.splitext(os.path.basename(filename))[0])
         if 'scan' in spectrum_dict['params']:
             spectrum.scan = spectrum_dict['params']['scan']
         if 'cluster' in spectrum_dict['params']:
             spectrum.cluster = spectrum_dict['params']['cluster']
+
         yield spectrum
 
 
@@ -185,9 +218,7 @@ def _read_spectra_mzxml(filename: str) -> Iterable[sus.MsmsSpectrum]:
 ###############################################################################
 
 
-def read_clusters(filename: str, fmt: str,
-                  spectra_keys: List[str] = None) \
-        -> Dict[str, int]:
+def read_clusters(filename: str, fmt: str) -> Dict[str, int]:
     """
     Read cluster assignments.
 
@@ -197,11 +228,7 @@ def read_clusters(filename: str, fmt: str,
         The cluster assignment file name.
     fmt : str
         Format of the cluster assignment file. Supported formats:
-        "maracluster", "spectra-cluster", "ms-cluster".
-    spectra_keys : List[str]
-        Required for MS-Cluster cluster assignment reading, ignored otherwise.
-        Ordered list of spectrum keys used to properly set the spectrum
-        identifiers from the MS-Cluster output.
+        "falcon", "maracluster", "spectra-cluster", "ms-cluster".
 
     Returns
     -------
@@ -209,20 +236,47 @@ def read_clusters(filename: str, fmt: str,
         A dictionary with as keys the spectrum identifiers (format
         "{filename}:scan:{scan}") and as value the cluster index.
     """
-    if fmt == 'maracluster':
+    if fmt == 'falcon':
+        return _read_clusters_falcon(filename)
+    elif fmt == 'maracluster':
         return _read_clusters_maracluster(filename)
     elif fmt == 'spectra-cluster':
         return _read_clusters_spectracluster(filename)
     elif fmt == 'ms-cluster':
-        if spectra_keys is None:
-            raise ValueError('The corresponding spectrum keys need to be '
-                             'provided for MS-Cluster cluster assignment '
-                             'reading')
-        return _convert_clusters_mscluster(
-            _read_clusters_mscluster(filename), spectra_keys)
+        return _read_clusters_mscluster(filename)
+    elif fmt == 'mscrush':
+        return _read_clusters_mscrush(filename)
     else:
         raise ValueError('Unsupported cluster file format (supported formats: '
-                         'MaRaCluster, spectra-cluster, MS-Cluster)')
+                         'falcon, MaRaCluster, spectra-cluster, MS-Cluster, '
+                         'msCRUSH)')
+
+
+def _read_clusters_falcon(filename: str) -> Dict[str, int]:
+    """
+    Read falcon cluster assignments.
+
+    Parameters
+    ----------
+    filename : str
+        The falcon cluster assignment file name.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    clusters = pd.read_csv(filename, comment='#')
+    # Assign noise points to singleton clusters.
+    noise_mask = clusters['cluster'] == -1
+    num_clusters = clusters['cluster'].max() + 1
+    clusters.loc[noise_mask, 'cluster'] = np.arange(
+        num_clusters, num_clusters + noise_mask.sum())
+    clusters['identifier'] = (clusters['identifier'].str.split(':').str[2:]
+                              .str.join(':'))
+    return (clusters[['identifier', 'cluster']]
+            .set_index('identifier', drop=True).squeeze().to_dict())
 
 
 def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
@@ -248,10 +302,80 @@ def _read_clusters_maracluster(filename: str) -> Dict[str, int]:
                 cluster_i += 1
             else:
                 fn, scan, *_ = line.split('\t')
-                clusters[f'{os.path.splitext(fn)[0]}:scan:{scan}'] = \
-                    cluster_i
+                clusters[f'{os.path.splitext(os.path.basename(fn))[0]}:scan:'
+                         f'{scan}'] = cluster_i
                 progress_bar.update(1)
         return clusters
+
+
+def _read_clusters_mscluster(dir_name: str) -> Dict[str, int]:
+    """
+    Read MS-Cluster cluster assignments.
+
+    Parameters
+    ----------
+    dir_name : str
+        The MS-Cluster cluster assignment directory.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    filenames = pd.read_csv(
+        os.path.join(dir_name, 'mscluster_0_spec_list.txt'), squeeze=True)
+    filenames = filenames.apply(
+        lambda x: os.path.splitext(os.path.basename(x))[0])
+    clusters, cluster_i = {}, -1
+    with tqdm.tqdm(desc='Cluster assignments read',
+                   unit='spectra') as progress_bar:
+        for filename in os.listdir(os.path.join(dir_name, 'clust')):
+            if filename.endswith('.clust'):
+                with open(os.path.join(dir_name, 'clust', filename)) as f_in:
+                    for line in f_in:
+                        if line.startswith('mscluster'):
+                            cluster_i += 1
+                        elif not line.isspace():
+                            splits = line.split('\t')
+                            clusters[f'{filenames.iat[int(splits[1])]}:scan:'
+                                     f'{int(splits[2])}'] = cluster_i
+                            progress_bar.update(1)
+    return clusters
+
+
+def _read_clusters_mscrush(dir_name: str) -> Dict[str, int]:
+    """
+    Read msCRUSH cluster assignments.
+
+    Parameters
+    ----------
+    dir_name : str
+        The msCRUSH cluster assignment directory.
+
+    Returns
+    -------
+    Dict[str, int]
+        A dictionary with as keys the spectrum identifiers (format
+        "{filename}:scan:{scan}") and as value the cluster index.
+    """
+    clusters = []
+    with tqdm.tqdm(desc='Cluster assignments read',
+                   unit='spectra') as progress_bar:
+        for filename in os.listdir(dir_name):
+            if filename.endswith('.txt'):
+                clusters_file = pd.read_csv(os.path.join(dir_name, filename),
+                                            sep='\t')
+                clusters_file['Titles'] = (clusters_file['Titles']
+                                           .str.split('|'))
+                clusters_file = clusters_file.explode('Titles')
+                clusters_file['Titles'] = clusters_file['Titles'].str.strip()
+                if len(clusters) > 0:
+                    clusters_file['ID'] += clusters[-1].iat[-1, 1] + 1
+                clusters.append(clusters_file[['Titles', 'ID']])
+                progress_bar.update(len(clusters_file))
+    return (pd.concat(clusters, ignore_index=True)
+            .set_index('Titles', drop=True).squeeze().to_dict())
 
 
 def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
@@ -276,66 +400,14 @@ def _read_clusters_spectracluster(filename: str) -> Dict[str, int]:
             if line.startswith('=Cluster='):
                 cluster_i += 1
             elif line.startswith('SPEC'):
-                fn = line[line.find('#file') + len('#file') + 1:
-                          line.find('#id')]
-                scan = line[line.find('#id=index=') + len('#id=index='):
-                            line.find('#title')]
+                fn = line[line.find('#file=') + len('#file='):line.find('#id')]
+                scan_start_i = line.find('scan=') + len('scan=')
+                scan_stop_i = line.find('\t', scan_start_i)
+                scan = line[scan_start_i:scan_stop_i]
                 clusters[f'{os.path.splitext(os.path.basename(fn))[0]}:scan:'
                          f'{scan}'] = cluster_i
                 progress_bar.update(1)
         return clusters
-
-
-def _read_clusters_mscluster(filename: str) -> Dict[int, int]:
-    """
-    Read MS-Cluster cluster assignments.
-
-    Parameters
-    ----------
-    filename : str
-        The MS-Cluster cluster assignment file name.
-
-    Returns
-    -------
-    Dict[int, int]
-        A dictionary with as keys the spectrum identifiers (format
-        "{filename}:scan:{scan}") and as value the cluster index.
-    """
-    logger.warning('MS-Cluster output reading is not fully supported')
-    with open(filename) as f_in, tqdm.tqdm(
-            desc='Cluster assignments read', unit='spectra') as progress_bar:
-        clusters, cluster_i = {}, 0
-        for line in f_in:
-            if line.startswith('mscluster'):
-                cluster_i += 1
-            elif not line.isspace():
-                clusters[int(line.split('\t')[2])] = cluster_i
-                progress_bar.update(1)
-        return clusters
-
-
-def _convert_clusters_mscluster(clusters: Dict[int, int],
-                                spectra_keys: List[str]) \
-        -> Dict[str, int]:
-    """
-    Associate spectrum identifiers with MS-Cluster cluster assignments.
-
-    Parameters
-    ----------
-    clusters : Dict[int, int]
-        A dictionary with as keys the spectrum index and as value the cluster
-        index.
-    spectra_keys : Iterable[str]
-        Ordered list of spectrum keys (format "{filename}:scan:{scan}").
-
-    Returns
-    -------
-    Dict[str, int]
-        A dictionary with as keys the spectrum identifiers (format
-        "{filename}:scan:{scan}") and as value the cluster index.
-    """
-    return {spectra_keys[key_index]: cluster_i
-            for key_index, cluster_i in clusters.items()}
 
 
 ###############################################################################
@@ -379,7 +451,7 @@ def _write_spectra_mgf(filename: str, spectra: Iterable[sus.MsmsSpectrum]) \
         The spectra to be written to the MGF file.
     """
     with open(filename, 'w') as f_out:
-        pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out)
+        pyteomics.mgf.write(_spectra_to_dicts(spectra), f_out, use_numpy=True)
 
 
 def _spectra_to_dicts(spectra: Iterable[sus.MsmsSpectrum]) -> Iterable[Dict]:
