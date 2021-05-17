@@ -324,7 +324,8 @@ def _read_clusters_mscluster(dir_name: str) -> Dict[str, int]:
         "{filename}:scan:{scan}") and as value the cluster index.
     """
     filenames = pd.read_csv(
-        os.path.join(dir_name, 'mscluster_0_spec_list.txt'), squeeze=True)
+        os.path.join(dir_name, 'mscluster_0_spec_list.txt'), header=None,
+        squeeze=True)
     filenames = filenames.apply(
         lambda x: os.path.splitext(os.path.basename(x))[0])
     clusters, cluster_i = {}, -1
